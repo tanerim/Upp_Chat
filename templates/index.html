@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Ollama Duel – Live Chat</title>
+  <title>Upp Chat</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
@@ -55,12 +55,12 @@ $("#startBtn").click(async function() {
   const top_k = parseInt($("#kL").val());
   const top_p = parseFloat($("#pL").val());
   const userPrompt = prompt(
-  "Define the LEFT model's role or goal (e.g., 'You are a detective solving a mystery')."
+  "Define the LEFT model's role or goal."
 );
 
   if (!userPrompt) return;
 
-  $("#chatbox").html("<p class='system'>Starting live duel...</p>");
+  $("#chatbox").html("<p class='system'>Starting conversation...</p>");
   $("#saveBtn").prop("disabled", true);
 
   const response = await fetch("/api/chat-stream", {
