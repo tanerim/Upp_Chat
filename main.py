@@ -114,7 +114,7 @@ async def chat_stream(request: Request):
             yield send_chunk(left_model, token)
 
         # Now alternate dialogue
-        for _ in range(15):  # three full exchanges
+        for _ in range(15):  # 15 full exchanges as default limit
             right_messages = [{"role": "user", "content": left_reply}]
             right_reply = ""
             for token in model_stream(right_model, right_messages):

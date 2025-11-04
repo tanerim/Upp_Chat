@@ -1,7 +1,9 @@
-# 🧠 LLM Duel – Local Model Conversation Arena
+# 🧠 LLM Duel
+### Local Model Conversation
 
 LLM Duel is a **FastAPI web app** that lets two **locally hosted LLMs (via [Ollama](https://ollama.ai))** talk to each other in real time.  
 You can define the **role and goal** of one model, then watch it start and sustain a conversation with another model through a **live, color-coded chat interface**.
+By default, total responses for each model is limited to 15. It could be set to more 
 
 ---
 
@@ -65,7 +67,9 @@ You can define the **role and goal** of one model, then watch it start and susta
 ### Define the left model’s role
 - When prompted, describe the left model’s persona or mission, e.g.
 
-        You are a philosopher debating ethics.
+        You are a cognitive scientist specializing in artificial intelligence alignment.
+        Your goal is to teach a curious student AI about cultural differences.
+
 
 ## Watch the conversation
 - The left model starts the conversation using your role definition,
