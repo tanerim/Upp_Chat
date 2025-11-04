@@ -10,30 +10,11 @@ import uuid
 import json
 import time
 from datetime import datetime
+from db import init_db, get_connection, DB_PATH
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
-DB_PATH = "conversations.db"
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS conversations (
-        id TEXT PRIMARY KEY,
-        model_left TEXT,
-        model_right TEXT,
-        temperature REAL,
-        top_k INTEGER,
-        top_p REAL,
-        conversation TEXT,
-        timestamp TEXT
-    )
-    """)
-    conn.commit()
-    conn.close()
 
 init_db()
 
@@ -100,7 +81,7 @@ async def chat_stream(request: Request):
                 if "message" in chunk:
                     yield chunk["message"]["content"]
 
-        yield send_chunk("system", f"Initializing duel: {left_model} 🧠 vs {right_model}")
+        yield send_chunk("system", f"Initializing Conversation: {left_model} 🧠 vs {right_model}")
 
         # Left model receives system prompt first
         left_init_messages = [
@@ -114,7 +95,7 @@ async def chat_stream(request: Request):
             yield send_chunk(left_model, token)
 
         # Now alternate dialogue
-        for _ in range(15):  # 15 full exchanges as default limit
+        for _ in range(10):  # 10 full exchanges as default limit
             right_messages = [{"role": "user", "content": left_reply}]
             right_reply = ""
             for token in model_stream(right_model, right_messages):
@@ -130,7 +111,7 @@ async def chat_stream(request: Request):
                 left_reply += token
                 yield send_chunk(left_model, token)
 
-        yield send_chunk("system", "🏁 Duel finished.")
+        yield send_chunk("system", "🏁 Conversation finished.")
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -141,11 +122,16 @@ async def chat_stream(request: Request):
 async def save_conversation(request: Request):
     data = await request.json()
     cid = str(uuid.uuid4())
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO conversations VALUES (?,?,?,?,?,?,?,?)",
-        (
+
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO conversations (
+                id, left_model, right_model, temperature, top_k, top_p, conversation, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
             cid,
             data["left_model"],
             data["right_model"],
@@ -154,8 +140,11 @@ async def save_conversation(request: Request):
             data["top_p"],
             json.dumps(data["conversation"], ensure_ascii=False),
             datetime.now().isoformat(),
-        ),
-    )
-    conn.commit()
-    conn.close()
-    return JSONResponse({"status": "saved", "id": cid})
+        ))
+        conn.commit()
+        conn.close()
+
+        return JSONResponse({"status": "saved", "id": cid})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
