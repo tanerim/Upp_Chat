@@ -10,7 +10,9 @@ import uuid
 import json
 import time
 from datetime import datetime
-from db import init_db, get_connection, DB_PATH
+from db import init_db
+from db import get_connection
+
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -22,19 +24,34 @@ init_db()
 async def index(request: Request):
     try:
         data = ollama.list()
-
-        # data.models is a list of Model objects
         if hasattr(data, "models"):
-            models = [m.model for m in data.models]
+            models = [
+                {
+                    "name": m.model,
+                    "label": f"{m.model} ({round(m.size / 1_000_000_000, 2)} GB)"
+                }
+                for m in data.models
+            ]
         else:
-            # Fallback for older API versions
-            models = [m.get("model") or m.get("name") for m in data.get("models", [])]
-
+            models = [
+                {
+                    "name": m.get("model", m.get("name", "unknown")),
+                    "label": f"{m.get('model', m.get('name', 'unknown'))} "
+                             f"({round(m.get('size', 0) / 1_000_000_000, 2)} GB)"
+                }
+                for m in data.get("models", [])
+            ]
     except Exception as e:
         print("⚠️ Error retrieving models:", e)
-        models = ["llama2", "mistral", "phi3"]  # safe defaults
+        models = [
+            {"name": "llama2", "label": "llama2 (3.9 GB)"},
+            {"name": "mistral", "label": "mistral (7.2 GB)"},
+            {"name": "phi3", "label": "phi3 (2.3 GB)"}
+        ]
 
     return templates.TemplateResponse("index.html", {"request": request, "models": models})
+
+
 
 
 

@@ -40,7 +40,7 @@ header p {
 
 .model-card {
   flex: 1 1 350px;
-  background: #fff;
+  background: #dcf1d9;
   border-radius: 14px;
   padding: 20px;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
@@ -69,6 +69,31 @@ header p {
   background: #f9fafb;
   font-size: 0.9rem;
 }
+
+.inline-field {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+  gap: 8px;
+}
+
+.inline-field label {
+  flex: 0 0 120px;
+  font-weight: 600;
+  color: #374151;
+  text-align: right;
+}
+
+.inline-field select,
+.inline-field input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  font-size: 0.9rem;
+}
+
 
 /* -------- CONTROL BUTTON -------- */
 .center-control {

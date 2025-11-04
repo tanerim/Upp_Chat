@@ -1,12 +1,17 @@
-# db.py
-import sqlite3
-from pathlib import Path
+#db.py
 
-DB_PATH = Path("data/conversations.db")
-DB_PATH.parent.mkdir(exist_ok=True)
+import sqlite3
+import os
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "data", "conversations.db")
+
+
+def get_connection():
+    return sqlite3.connect(DB_PATH)
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    """Initialize the database and create table if it doesn’t exist."""
+    conn = get_connection()
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS conversations (
@@ -22,6 +27,3 @@ def init_db():
     """)
     conn.commit()
     conn.close()
-
-def get_connection():
-    return sqlite3.connect(DB_PATH)
