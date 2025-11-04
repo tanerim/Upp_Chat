@@ -10,8 +10,7 @@ import uuid
 import json
 import time
 from datetime import datetime
-from db import init_db
-from db import get_connection
+from db import init_db, get_connection, DB_PATH
 
 
 app = FastAPI()

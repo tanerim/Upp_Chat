@@ -17,62 +17,59 @@
 
   <!-- Settings Section -->
   <section class="settings">
+    <div class="model-card">
+      <h3>Left Model</h3>
+      <div class="inline-field">
+        <label for="leftModel">Model:</label>
+        <select id="leftModel">
+          {% for m in models %}
+            <option value="{{m.name}}">{{m.label}}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-<div class="model-card">
-  <h3>Left Model</h3>
-  <div class="inline-field">
-    <label for="leftModel">Model:</label>
-    <select id="leftModel">
-  {% for m in models %}
-    <option value="{{m.name}}">{{m.label}}</option>
-  {% endfor %}
-</select>
-  </div>
+      <div class="inline-field">
+        <label for="tempL">Temperature:</label>
+        <input type="number" id="tempL" value="0.7" step="0.1" min="0" max="1" />
+      </div>
 
-  <div class="inline-field">
-    <label for="tempL">Temperature:</label>
-    <input type="number" id="tempL" value="0.7" step="0.1" min="0" max="1">
-  </div>
+      <div class="inline-field">
+        <label for="kL">Top K:</label>
+        <input type="number" id="kL" value="40" />
+      </div>
 
-  <div class="inline-field">
-    <label for="kL">Top K:</label>
-    <input type="number" id="kL" value="40">
-  </div>
+      <div class="inline-field">
+        <label for="pL">Top P:</label>
+        <input type="number" id="pL" value="0.9" step="0.1" min="0" max="1" />
+      </div>
+    </div>
 
-  <div class="inline-field">
-    <label for="pL">Top P:</label>
-    <input type="number" id="pL" value="0.9" step="0.1" min="0" max="1">
-  </div>
-</div>
+    <div class="model-card">
+      <h3>Right Model</h3>
+      <div class="inline-field">
+        <label for="rightModel">Model:</label>
+        <select id="rightModel">
+          {% for m in models %}
+            <option value="{{m.name}}">{{m.label}}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-<div class="model-card">
-  <h3>Right Model</h3>
-  <div class="inline-field">
-    <label for="rightModel">Model:</label>
-   <select id="rightModel">
-  {% for m in models %}
-    <option value="{{m.name}}">{{m.label}}</option>
-  {% endfor %}
-</select>
-  </div>
+      <div class="inline-field">
+        <label for="tempR">Temperature:</label>
+        <input type="number" id="tempR" value="0.7" step="0.1" min="0" max="1" />
+      </div>
 
-  <div class="inline-field">
-    <label for="tempR">Temperature:</label>
-    <input type="number" id="tempR" value="0.7" step="0.1" min="0" max="1">
-  </div>
+      <div class="inline-field">
+        <label for="kR">Top K:</label>
+        <input type="number" id="kR" value="40" />
+      </div>
 
-  <div class="inline-field">
-    <label for="kR">Top K:</label>
-    <input type="number" id="kR" value="40">
-  </div>
-
-  <div class="inline-field">
-    <label for="pR">Top P:</label>
-    <input type="number" id="pR" value="0.9" step="0.1" min="0" max="1">
-  </div>
-</div>
-
-
+      <div class="inline-field">
+        <label for="pR">Top P:</label>
+        <input type="number" id="pR" value="0.9" step="0.1" min="0" max="1" />
+      </div>
+    </div>
   </section>
 
   <section class="center-control">
@@ -85,164 +82,212 @@
   <!-- Bottom Controls -->
   <div class="bottom-bar">
     <button id="saveBtn" disabled>Save Conversation</button>
-</div>
+  </div>
 
   <!-- Footer -->
   <footer class="footer">ts @ 2025</footer>
-  <!-- Script -->
-<!-- Script -->
-<script>
-  // -------- Stopword list --------
-  const STOP_WORDS = new Set([
-    "a","an","the","and","or","but","if","then","so","as","at","by","for","from","in","into","of","on","to","up","with",
-    "without","about","above","after","again","against","all","am","are","aren’t","be","because","been","being","below",
-    "between","both","can","could","did","do","does","doing","down","during","each","few","further","had","has","have",
-    "having","he","her","here","hers","herself","him","himself","his","how","i","i’m","i’ve","i’ll","i’d","is","it","its",
-    "it’s","itself","let","me","more","most","my","myself","no","nor","not","now","off","once","only","other","our","ours",
-    "ourselves","out","over","own","same","she","should","so","some","such","than","that","their","theirs","them",
-    "themselves","then","there","these","they","this","those","through","too","under","until","very","was","we","were",
-    "what","when","where","which","while","who","whom","why","will","with","would","you","your","yours","yourself","yourselves",
+
+  <!-- Scripts -->
+  <script>
+    // -------- Stopword list --------
+    const STOP_WORDS = new Set([
+      "a","an","the","and","or","but","if","then","so","as","at","by","for","from","in","into","of","on","to","up","with",
+      "without","about","above","after","again","against","all","am","are","aren’t","be","because","been","being","below",
+      "between","both","can","could","did","do","does","doing","down","during","each","few","further","had","has","have",
+      "having","he","her","here","hers","herself","him","himself","his","how","i","i’m","i’ve","i’ll","i’d","is","it","its",
+      "it’s","itself","let","me","more","most","my","myself","no","nor","not","now","off","once","only","other","our","ours",
+      "ourselves","out","over","own","same","she","should","so","some","such","than","that","their","theirs","them",
+      "themselves","then","there","these","they","this","those","through","too","under","until","very","was","we","were",
+      "what","when","where","which","while","who","whom","why","will","with","would","you","your","yours","yourself","yourselves",
       "s", "t", "ve", "d", "m", "isn", "ll", "e", "g"
-  ]);
+    ]);
 
-  // -------- Helper: top N frequent words --------
-  function topWords(text, n = 10) {
-    const words = text
-      .toLowerCase()
-      .replace(/[^a-z\s]/g, " ")
-      .split(/\s+/)
-      .filter(w => w && !STOP_WORDS.has(w));
+    function topWords(text, n = 10) {
+      const words = text
+        .toLowerCase()
+        .replace(/[^a-z\s]/g, " ")
+        .split(/\s+/)
+        .filter(w => w && !STOP_WORDS.has(w));
+      const freq = {};
+      for (const w of words) freq[w] = (freq[w] || 0) + 1;
+      return Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n);
+    }
 
-    const freq = {};
-    for (const w of words) freq[w] = (freq[w] || 0) + 1;
+    let conversation = [];
+    let currentRole = null;
+    let currentBuffer = "";
 
-    return Object.entries(freq)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, n);
-  }
+    $("#startBtn").click(async function () {
+      const left = $("#leftModel").val();
+      const right = $("#rightModel").val();
+      const temperature = parseFloat($("#tempL").val());
+      const top_k = parseInt($("#kL").val());
+      const top_p = parseFloat($("#pL").val());
+      const userPrompt = prompt("Define the LEFT model's role and goal.");
 
-  // -------- Conversation logic --------
-  let conversation = [];
-  let currentRole = null;
-  let currentBuffer = "";
+      if (!userPrompt) return;
 
-  $("#startBtn").click(async function () {
-    const left = $("#leftModel").val();
-    const right = $("#rightModel").val();
-    const temperature = parseFloat($("#tempL").val());
-    const top_k = parseInt($("#kL").val());
-    const top_p = parseFloat($("#pL").val());
-    const userPrompt = prompt("Define the LEFT model's role and goal.");
+      $("#chatbox").html("<p class='system'>Starting conversation...</p>");
+      $("#saveBtn").prop("disabled", true);
+      conversation = [];
 
-    if (!userPrompt) return;
+      const response = await fetch("/api/chat-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          left_model: left,
+          right_model: right,
+          temperature,
+          top_k,
+          top_p,
+          prompt: userPrompt,
+        }),
+      });
 
-    $("#chatbox").html("<p class='system'>Starting conversation...</p>");
-    $("#saveBtn").prop("disabled", true);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-    const response = await fetch("/api/chat-stream", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        left_model: left,
-        right_model: right,
-        temperature,
-        top_k,
-        top_p,
-        prompt: userPrompt,
-      }),
+      async function flushMessage(role) {
+        if (!currentBuffer.trim()) return;
+        const cssClass = role.includes(left)
+          ? "left-msg"
+          : role.includes(right)
+          ? "right-msg"
+          : "system";
+
+        const modelLabel = `<strong class='model-name'>${role}</strong>`;
+        const msgText = currentBuffer.trim();
+
+        let freqHTML = "";
+        if (cssClass !== "system") {
+          const topFreq = topWords(msgText);
+          if (topFreq.length) {
+            freqHTML = `
+              <div class='freq-box'>
+                <strong>Top Words:</strong>
+                ${topFreq.map(([w, c]) => `<span>${w} (${c})</span>`).join(" ")}
+              </div>`;
+          }
+        }
+
+        conversation.push({ role, content: msgText });
+
+        $("#chatbox").append(
+          `<div class='${cssClass} fade-in'>
+            ${modelLabel}
+            <div class='msg-text'>${msgText}</div>
+            ${freqHTML}
+          </div>`
+        );
+
+        $("#chatbox").scrollTop($("#chatbox")[0].scrollHeight);
+        currentBuffer = "";
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
+
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) continue;
+          const payload = JSON.parse(part.slice(6));
+          const role = payload.role;
+          const token = payload.token;
+          if (role !== currentRole && currentRole !== null) {
+            await flushMessage(currentRole);
+          }
+          currentRole = role;
+          currentBuffer += token;
+        }
+      }
+
+      await flushMessage(currentRole);
+      $("#chatbox").append("<p class='system'>Conversation finished.</p>");
+      $("#saveBtn").prop("disabled", false);
     });
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    // -------- Flush each model message --------
-    async function flushMessage(role) {
-      if (!currentBuffer.trim()) return;
-
-      const cssClass = role.includes(left)
-        ? "left-msg"
-        : role.includes(right)
-        ? "right-msg"
-        : "system";
-
-      const modelLabel = `<strong class="model-name">${role}</strong>`;
-      const msgText = currentBuffer.trim();
-
-      // ✅ Only compute top words for model responses
-      let freqHTML = "";
-      if (cssClass !== "system") {
-        const topFreq = topWords(msgText);
-        if (topFreq.length) {
-          freqHTML = `
-            <div class="freq-box">
-              <strong>Top Words:</strong>
-              ${topFreq.map(([w, c]) => `<span>${w} (${c})</span>`).join(" ")}
-            </div>`;
-        }
+    // -------- Save Conversation --------
+    $("#saveBtn").click(async function () {
+      if (!conversation.length) {
+        showToast("⚠️ No conversation to save!");
+        return;
       }
 
-      // Append formatted message + frequency box
-      $("#chatbox").append(
-        `<div class="${cssClass} fade-in">
-           ${modelLabel}
-           <div class="msg-text">${msgText}</div>
-           ${freqHTML}
-         </div>`
-      );
+      const payload = {
+        left_model: $("#leftModel").val(),
+        right_model: $("#rightModel").val(),
+        temperature: parseFloat($("#tempL").val()),
+        top_k: parseInt($("#kL").val()),
+        top_p: parseFloat($("#pL").val()),
+        conversation,
+      };
 
-      $("#chatbox").scrollTop($("#chatbox")[0].scrollHeight);
-      currentBuffer = "";
-    }
+      try {
+        const response = await fetch("/api/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-    // -------- Stream from backend --------
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop();
-
-      for (const part of parts) {
-        if (!part.startsWith("data: ")) continue;
-        const payload = JSON.parse(part.slice(6));
-        const role = payload.role;
-        const token = payload.token;
-
-        if (role !== currentRole && currentRole !== null) {
-          await flushMessage(currentRole);
+        const result = await response.json();
+        if (response.ok && result.status === "saved") {
+          showToast(`✅ Conversation saved! ID: ${result.id}`);
+        } else {
+          showToast(`❌ Save failed: ${result.error || "Unknown error"}`);
         }
-        currentRole = role;
-        currentBuffer += token;
+      } catch (err) {
+        showToast(`⚠️ Save error: ${err.message}`);
       }
+    });
+
+    function showToast(message) {
+      const toast = document.createElement("div");
+      toast.textContent = message;
+      toast.style.position = "fixed";
+      toast.style.bottom = "90px";
+      toast.style.left = "50%";
+      toast.style.transform = "translateX(-50%)";
+      toast.style.background = "#a5b4fc";
+      toast.style.color = "#111827";
+      toast.style.padding = "10px 20px";
+      toast.style.borderRadius = "10px";
+      toast.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+      toast.style.fontWeight = "600";
+      toast.style.opacity = "0";
+      toast.style.transition = "opacity 0.5s";
+      toast.style.zIndex = "9999";
+      document.body.appendChild(toast);
+      setTimeout(() => (toast.style.opacity = "1"), 50);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 600);
+      }, 3000);
     }
+  </script>
 
-    await flushMessage(currentRole);
-    $("#chatbox").append("<p class='system'>Conversation finished.</p>");
-    $("#saveBtn").prop("disabled", false);
-  });
-</script>
+  <!-- Go Top Button -->
+  <button id="goTopBtn" title="Go to top">⬆</button>
+  <script>
+    const goTopBtn = document.getElementById("goTopBtn");
+    const chatbox = document.getElementById("chatbox");
 
+    chatbox.addEventListener("scroll", () => {
+      if (chatbox.scrollTop > 200) {
+        goTopBtn.classList.add("show");
+      } else {
+        goTopBtn.classList.remove("show");
+      }
+    });
 
-
-<button id="goTopBtn" title="Go to top">⬆</button>
-<script>
-  const goTopBtn = document.getElementById("goTopBtn");
-  const chatbox = document.getElementById("chatbox");
-
-  chatbox.addEventListener("scroll", () => {
-    if (chatbox.scrollTop > 200) {
-      goTopBtn.classList.add("show");
-    } else {
-      goTopBtn.classList.remove("show");
-    }
-  });
-
-  goTopBtn.addEventListener("click", () => {
-    chatbox.scrollTo({ top: 0, behavior: "smooth" });
-  });
-</script>
-
-
+    goTopBtn.addEventListener("click", () => {
+      chatbox.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  </script>
 </body>
 </html>
