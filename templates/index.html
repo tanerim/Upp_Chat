@@ -87,6 +87,18 @@
   <!-- Footer -->
   <footer class="footer">ts @ 2025</footer>
 
+  <!-- Conversation Init Modal -->
+  <div id="initModal" class="modal">
+    <div class="modal-content">
+      <h2>🎯 Define the Left Model's Role & Goal</h2>
+      <textarea id="userPrompt" placeholder="e.g., You are a philosopher exploring the ethics of AI consciousness..."></textarea>
+      <div class="modal-actions">
+        <button id="cancelInit">Cancel</button>
+        <button id="confirmInit">Start</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script>
     // -------- Stopword list --------
@@ -103,31 +115,47 @@
     ]);
 
     function topWords(text, n = 10) {
-      const words = text
-        .toLowerCase()
-        .replace(/[^a-z\s]/g, " ")
-        .split(/\s+/)
+      const words = text.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/)
         .filter(w => w && !STOP_WORDS.has(w));
       const freq = {};
       for (const w of words) freq[w] = (freq[w] || 0) + 1;
-      return Object.entries(freq)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, n);
+      return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, n);
     }
 
     let conversation = [];
     let currentRole = null;
     let currentBuffer = "";
 
-    $("#startBtn").click(async function () {
+    // -------- Modal Logic --------
+    const modal = $("#initModal");
+    const userPromptInput = $("#userPrompt");
+
+    $("#startBtn").click(() => {
+      modal.addClass("active");
+      userPromptInput.val("").focus();
+    });
+
+    $("#cancelInit").click(() => {
+      modal.removeClass("active");
+    });
+
+    $("#confirmInit").click(() => {
+      const userPrompt = userPromptInput.val().trim();
+      if (!userPrompt) {
+        alert("Please define the Left Model's role or goal.");
+        return;
+      }
+      modal.removeClass("active");
+      startConversation(userPrompt);
+    });
+
+    // -------- Main Conversation Function --------
+    async function startConversation(userPrompt) {
       const left = $("#leftModel").val();
       const right = $("#rightModel").val();
       const temperature = parseFloat($("#tempL").val());
       const top_k = parseInt($("#kL").val());
       const top_p = parseFloat($("#pL").val());
-      const userPrompt = prompt("Define the LEFT model's role and goal.");
-
-      if (!userPrompt) return;
 
       $("#chatbox").html("<p class='system'>Starting conversation...</p>");
       $("#saveBtn").prop("disabled", true);
@@ -136,14 +164,7 @@
       const response = await fetch("/api/chat-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          left_model: left,
-          right_model: right,
-          temperature,
-          top_k,
-          top_p,
-          prompt: userPrompt,
-        }),
+        body: JSON.stringify({ left_model: left, right_model: right, temperature, top_k, top_p, prompt: userPrompt }),
       });
 
       const reader = response.body.getReader();
@@ -157,7 +178,6 @@
           : role.includes(right)
           ? "right-msg"
           : "system";
-
         const modelLabel = `<strong class='model-name'>${role}</strong>`;
         const msgText = currentBuffer.trim();
 
@@ -165,24 +185,12 @@
         if (cssClass !== "system") {
           const topFreq = topWords(msgText);
           if (topFreq.length) {
-            freqHTML = `
-              <div class='freq-box'>
-                <strong>Top Words:</strong>
-                ${topFreq.map(([w, c]) => `<span>${w} (${c})</span>`).join(" ")}
-              </div>`;
+            freqHTML = `<div class='freq-box'><strong>Top Words:</strong> ${topFreq.map(([w, c]) => `<span>${w} (${c})</span>`).join(" ")}</div>`;
           }
         }
 
         conversation.push({ role, content: msgText });
-
-        $("#chatbox").append(
-          `<div class='${cssClass} fade-in'>
-            ${modelLabel}
-            <div class='msg-text'>${msgText}</div>
-            ${freqHTML}
-          </div>`
-        );
-
+        $("#chatbox").append(`<div class='${cssClass} fade-in'>${modelLabel}<div class='msg-text'>${msgText}</div>${freqHTML}</div>`);
         $("#chatbox").scrollTop($("#chatbox")[0].scrollHeight);
         currentBuffer = "";
       }
@@ -193,15 +201,12 @@
         buffer += decoder.decode(value, { stream: true });
         const parts = buffer.split("\n\n");
         buffer = parts.pop();
-
         for (const part of parts) {
           if (!part.startsWith("data: ")) continue;
           const payload = JSON.parse(part.slice(6));
           const role = payload.role;
           const token = payload.token;
-          if (role !== currentRole && currentRole !== null) {
-            await flushMessage(currentRole);
-          }
+          if (role !== currentRole && currentRole !== null) await flushMessage(currentRole);
           currentRole = role;
           currentBuffer += token;
         }
@@ -210,7 +215,7 @@
       await flushMessage(currentRole);
       $("#chatbox").append("<p class='system'>Conversation finished.</p>");
       $("#saveBtn").prop("disabled", false);
-    });
+    }
 
     // -------- Save Conversation --------
     $("#saveBtn").click(async function () {
@@ -246,48 +251,45 @@
       }
     });
 
-    function showToast(message) {
-      const toast = document.createElement("div");
-      toast.textContent = message;
-      toast.style.position = "fixed";
-      toast.style.bottom = "90px";
-      toast.style.left = "50%";
-      toast.style.transform = "translateX(-50%)";
-      toast.style.background = "#a5b4fc";
-      toast.style.color = "#111827";
-      toast.style.padding = "10px 20px";
-      toast.style.borderRadius = "10px";
-      toast.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-      toast.style.fontWeight = "600";
-      toast.style.opacity = "0";
-      toast.style.transition = "opacity 0.5s";
-      toast.style.zIndex = "9999";
-      document.body.appendChild(toast);
-      setTimeout(() => (toast.style.opacity = "1"), 50);
+    // -------- Toast Notification --------
+    function showToast(msg) {
+      const t = document.createElement("div");
+      t.textContent = msg;
+      Object.assign(t.style, {
+        position: "fixed",
+        bottom: "80px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        background: "#a5b4fc",
+        color: "#111827",
+        padding: "10px 20px",
+        borderRadius: "10px",
+        fontWeight: "600",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+        opacity: 0,
+        transition: "opacity 0.5s",
+        zIndex: 9999
+      });
+      document.body.appendChild(t);
+      setTimeout(() => (t.style.opacity = 1), 50);
       setTimeout(() => {
-        toast.style.opacity = "0";
-        setTimeout(() => toast.remove(), 600);
+        t.style.opacity = 0;
+        setTimeout(() => t.remove(), 500);
       }, 3000);
     }
-  </script>
 
-  <!-- Go Top Button -->
-  <button id="goTopBtn" title="Go to top">⬆</button>
-  <script>
+    // -------- Go Top Button --------
     const goTopBtn = document.getElementById("goTopBtn");
     const chatbox = document.getElementById("chatbox");
 
     chatbox.addEventListener("scroll", () => {
-      if (chatbox.scrollTop > 200) {
-        goTopBtn.classList.add("show");
-      } else {
-        goTopBtn.classList.remove("show");
-      }
+      goTopBtn.classList.toggle("show", chatbox.scrollTop > 200);
     });
-
     goTopBtn.addEventListener("click", () => {
       chatbox.scrollTo({ top: 0, behavior: "smooth" });
     });
   </script>
+
+  <button id="goTopBtn" title="Go to top">⬆</button>
 </body>
 </html>
