@@ -112,7 +112,7 @@ async def chat_stream(request: Request):
             yield send_chunk(left_model, token)
 
         # Now alternate dialogue
-        for _ in range(10):  # 10 full exchanges as default limit
+        for _ in range(5):  # 5 full exchanges as default limit
             right_messages = [{"role": "user", "content": left_reply}]
             right_reply = ""
             for token in model_stream(right_model, right_messages):
@@ -161,6 +161,7 @@ async def save_conversation(request: Request):
         conn.commit()
         conn.close()
 
+        print(f"💾 Saved conversation {cid} to {DB_PATH}")
         return JSONResponse({"status": "saved", "id": cid})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
