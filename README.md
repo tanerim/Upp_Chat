@@ -1,7 +1,7 @@
-# 🧠 LLM Duel
+# 🧠 Upp Chat
 ### Local Model Conversation
 
-LLM Duel is a **FastAPI web app** that lets two **locally hosted LLMs (via [Ollama](https://ollama.ai))** talk to each other in real time.  
+Upp Chat is a **FastAPI web app** that lets two **locally hosted LLMs (via [Ollama](https://ollama.ai))** talk to each other in real time.  
 You can define the **role and goal** of one model, then watch it start and sustain a conversation with another model through a **live, color-coded chat interface**.
 By default, total responses for each model is limited to 15. It could be set to more 
 
@@ -23,7 +23,7 @@ By default, total responses for each model is limited to 15. It could be set to 
 
 ## 🏗️ Project Structure
 
-- ollama_duel/
+- Upp Chat/
 - │
 - ├── main.py # FastAPI backend
 - ├── db.py # SQLite setup and helpers
@@ -41,8 +41,8 @@ By default, total responses for each model is limited to 15. It could be set to 
 1. **Clone or copy the repository**
 
    ```bash
-   git clone https://github.com/yourusername/ollama_duel.git
-   cd ollama_duel
+   git clone https://github.com/tanerim/Upp_Chat
+   cd Upp_Chat
    pip install fastapi uvicorn jinja2 ollama
    ```
 2. **Make sure ollama is running**   
