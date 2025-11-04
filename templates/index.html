@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ollama Duel – Live Chat</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <div class="settings-row">
+    <div class="column">
+      <h3>Left Model</h3>
+      <label>Model:</label>
+      <select id="leftModel">{% for m in models %}<option>{{m}}</option>{% endfor %}</select><br>
+      <label>Temperature:</label>
+      <input type="number" id="tempL" value="0.7" step="0.1" min="0" max="1"><br>
+      <label>Top K:</label>
+      <input type="number" id="kL" value="40"><br>
+      <label>Top P:</label>
+      <input type="number" id="pL" value="0.9" step="0.1" min="0" max="1">
+    </div>
+
+    <div class="column">
+      <h3>Right Model</h3>
+      <label>Model:</label>
+      <select id="rightModel">{% for m in models %}<option>{{m}}</option>{% endfor %}</select><br>
+      <label>Temperature:</label>
+      <input type="number" id="tempR" value="0.7" step="0.1" min="0" max="1"><br>
+      <label>Top K:</label>
+      <input type="number" id="kR" value="40"><br>
+      <label>Top P:</label>
+      <input type="number" id="pR" value="0.9" step="0.1" min="0" max="1">
+    </div>
+  </div>
+
+  <div class="center-row">
+    <button id="startBtn">Start Conversation</button>
+  </div>
+
+  <div id="chatbox"></div>
+
+  <div class="bottom-buttons">
+    <button id="stopBtn">Stop Conversation</button>
+    <button id="saveBtn" disabled>Save Conversation</button>
+  </div>
+
+<script>
+let conversation = [];
+let currentRole = null;
+let currentBuffer = "";
+
+$("#startBtn").click(async function() {
+  const left = $("#leftModel").val();
+  const right = $("#rightModel").val();
+  const temperature = parseFloat($("#tempL").val());
+  const top_k = parseInt($("#kL").val());
+  const top_p = parseFloat($("#pL").val());
+  const userPrompt = prompt(
+  "Define the LEFT model's role or goal (e.g., 'You are a detective solving a mystery')."
+);
+
+  if (!userPrompt) return;
+
+  $("#chatbox").html("<p class='system'>Starting live duel...</p>");
+  $("#saveBtn").prop("disabled", true);
+
+  const response = await fetch("/api/chat-stream", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      left_model: left,
+      right_model: right,
+      temperature, top_k, top_p, prompt: userPrompt
+    })
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  async function flushMessage(role) {
+    if (!currentBuffer.trim()) return;
+    let cssClass = role.includes(left) ? "left-msg" :
+                   role.includes(right) ? "right-msg" : "system";
+
+    // Add the model name in bold before its text
+    const modelLabel = `<strong class="model-name">${role}</strong>`;
+    $("#chatbox").append(
+      `<div class="${cssClass}">${modelLabel}<div class="msg-text">${currentBuffer.trim()}</div></div>`
+    );
+
+    $("#chatbox").scrollTop($("#chatbox")[0].scrollHeight);
+    currentBuffer = "";
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, {stream: true});
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop();
+
+    for (const part of parts) {
+      if (!part.startsWith("data: ")) continue;
+      const payload = JSON.parse(part.slice(6));
+      const role = payload.role;
+      const token = payload.token;
+
+      if (role !== currentRole && currentRole !== null) {
+        await flushMessage(currentRole);
+      }
+      currentRole = role;
+      currentBuffer += token;
+    }
+  }
+
+  await flushMessage(currentRole);
+  $("#chatbox").append("<p class='system'>Conversation finished.</p>");
+  $("#saveBtn").prop("disabled", false);
+});
+</script>
+
+
+</body>
+</html>
