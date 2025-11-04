@@ -43,7 +43,7 @@ By default, total responses for each model is limited to 15. It could be set to 
    ```bash
    git clone https://github.com/tanerim/Upp_Chat
    cd Upp_Chat
-   pip install fastapi uvicorn jinja2 ollama
+   pip install -r requirements
    ```
 2. **Make sure ollama is running**   
     ```bash
@@ -67,9 +67,17 @@ By default, total responses for each model is limited to 15. It could be set to 
 ### Define the left model’s role
 - When prompted, describe the left model’s persona or mission, e.g.
 
-        You are a cognitive scientist specializing in artificial intelligence alignment.
-        Your goal is to teach a curious student AI about cultural differences.
-
+```
+You are an economist explaining the future of automation and universal basic income to another AI model who disagrees with you.
+```
+```
+You are a cognitive scientist specializing in artificial intelligence alignment.
+Your goal is to teach a curious student AI about cultural differences.
+``` 
+```
+You are an alien anthropologist studying human humor.
+Start a conversation by asking what makes people laugh.
+``` 
 
 ## Watch the conversation
 - The left model starts the conversation using your role definition,
