@@ -55,7 +55,7 @@ $("#startBtn").click(async function() {
   const top_k = parseInt($("#kL").val());
   const top_p = parseFloat($("#pL").val());
   const userPrompt = prompt(
-  "Define the LEFT model's role or goal."
+  "Define the LEFT model's role and goal."
 );
 
   if (!userPrompt) return;
