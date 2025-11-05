@@ -81,7 +81,8 @@ async def chat_stream(request: Request):
     temperature = float(data.get("temperature", 0.7))
     top_k = int(data.get("top_k", 40))
     top_p = float(data.get("top_p", 0.9))
-    system_prompt = data["prompt"].strip()
+    prompt_left = data.get("prompt_left", "").strip()
+    prompt_right = data.get("prompt_right", "").strip()
 
     async def event_generator():
         def send_chunk(role, token):
@@ -89,37 +90,40 @@ async def chat_stream(request: Request):
 
         def model_stream(model, messages):
             for chunk in ollama.chat(
-                model=model,
-                messages=messages,
-                options={"temperature": temperature, "top_k": top_k, "top_p": top_p},
-                stream=True,
+                    model=model,
+                    messages=messages,
+                    options={"temperature": temperature, "top_k": top_k, "top_p": top_p},
+                    stream=True,
             ):
                 if "message" in chunk:
                     yield chunk["message"]["content"]
 
         yield send_chunk("system", f"Initializing Conversation: {left_model} 🧠 vs {right_model}")
 
-        # Left model receives system prompt first
-        left_init_messages = [
-            {"role": "system", "content": system_prompt},
+        # Left model starts with its system prompt
+        left_init = [
+            {"role": "system", "content": prompt_left},
             {"role": "user", "content": "Begin the conversation based on your role."}
         ]
 
         left_reply = ""
-        for token in model_stream(left_model, left_init_messages):
+        for token in model_stream(left_model, left_init):
             left_reply += token
             yield send_chunk(left_model, token)
 
-        # Now alternate dialogue
-        for _ in range(15):  # 15 full exchanges as default limit
-            right_messages = [{"role": "user", "content": left_reply}]
+        # Alternate dialogue between models
+        for _ in range(15):
+            right_messages = [
+                {"role": "system", "content": prompt_right},
+                {"role": "user", "content": left_reply},
+            ]
             right_reply = ""
             for token in model_stream(right_model, right_messages):
                 right_reply += token
                 yield send_chunk(right_model, token)
 
             left_messages = [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": prompt_left},
                 {"role": "user", "content": right_reply},
             ]
             left_reply = ""
