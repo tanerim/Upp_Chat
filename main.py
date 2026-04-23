@@ -6,6 +6,8 @@ from fastapi.responses import StreamingResponse
 import ollama
 import uuid
 import json
+import re
+from collections import Counter
 from datetime import datetime
 from db import init_db, get_connection, DB_PATH
 
@@ -15,6 +17,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 init_db()
+
+
+def compute_word_frequency(text):
+    """
+    Build a word frequency map for a single response.
+    Keeps unicode word characters and lowercases for normalized counting.
+    """
+    words = re.findall(r"\b\w+\b", text.lower(), flags=re.UNICODE)
+    return dict(Counter(words))
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -157,6 +168,7 @@ async def chat_stream(request: Request):
 async def save_conversation(request: Request):
     data = await request.json()
     cid = str(uuid.uuid4())
+    conversation = data.get("conversation", [])
 
     try:
         conn = get_connection()
@@ -173,13 +185,36 @@ async def save_conversation(request: Request):
             data["temperature"],
             data["top_k"],
             data["top_p"],
-            json.dumps(data["conversation"], ensure_ascii=False),
+            json.dumps(conversation, ensure_ascii=False),
             datetime.now().isoformat(),
         ))
+
+        for idx, message in enumerate(conversation):
+            role = message.get("role", "unknown")
+            content = message.get("content", "")
+            word_frequency = compute_word_frequency(content)
+            c.execute("""
+                INSERT INTO conversation_messages (
+                    conversation_id, message_index, role, content, word_frequency, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                cid,
+                idx,
+                role,
+                content,
+                json.dumps(word_frequency, ensure_ascii=False),
+                datetime.now().isoformat(),
+            ))
+
         conn.commit()
         conn.close()
 
         print(f"💾 Saved conversation {cid} to {DB_PATH}")
-        return JSONResponse({"status": "saved", "id": cid})
+        return JSONResponse({
+            "status": "saved",
+            "id": cid,
+            "messages_saved": len(conversation)
+        })
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
