@@ -79,7 +79,7 @@ async def chat_stream(request: Request):
     right_top_k = int(data.get("right_top_k", 40))
     right_top_p = float(data.get("right_top_p", 0.9))
     turns = max(1, min(200, int(data.get("turns", 15))))
-    keep_alive = data.get("keep_alive", "20m")
+    keep_alive = data.get("keep_alive", "5m")
     left_host = data.get("left_host", "http://127.0.0.1:11434").strip() or "http://127.0.0.1:11434"
     right_host = data.get("right_host", left_host).strip() or left_host
     prompt_left = data.get("prompt_left", "").strip()
