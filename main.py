@@ -3,12 +3,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
-import asyncio
 import ollama
-import sqlite3
 import uuid
 import json
-import time
 from datetime import datetime
 from db import init_db, get_connection, DB_PATH
 
@@ -54,20 +51,6 @@ async def index(request: Request):
 
 
 
-@app.post("/api/start_conversation")
-async def start_conversation(
-    left_model: str = Form(...),
-    right_model: str = Form(...),
-    temperature: float = Form(0.7),
-    top_k: int = Form(40),
-    top_p: float = Form(0.9),
-):
-    return JSONResponse({"status": "ready", "left_model": left_model, "right_model": right_model})
-
-from fastapi import Request
-from fastapi.responses import JSONResponse
-import ollama
-
 @app.post("/api/chat-stream")
 async def chat_stream(request: Request):
     """
@@ -78,27 +61,44 @@ async def chat_stream(request: Request):
     data = await request.json()
     left_model = data["left_model"]
     right_model = data["right_model"]
-    temperature = float(data.get("temperature", 0.7))
-    top_k = int(data.get("top_k", 40))
-    top_p = float(data.get("top_p", 0.9))
+    left_temperature = float(data.get("left_temperature", 0.7))
+    left_top_k = int(data.get("left_top_k", 40))
+    left_top_p = float(data.get("left_top_p", 0.9))
+    right_temperature = float(data.get("right_temperature", 0.7))
+    right_top_k = int(data.get("right_top_k", 40))
+    right_top_p = float(data.get("right_top_p", 0.9))
+    turns = max(1, min(200, int(data.get("turns", 15))))
+    keep_alive = data.get("keep_alive", "20m")
+    left_host = data.get("left_host", "http://127.0.0.1:11434").strip() or "http://127.0.0.1:11434"
+    right_host = data.get("right_host", left_host).strip() or left_host
     prompt_left = data.get("prompt_left", "").strip()
     prompt_right = data.get("prompt_right", "").strip()
 
     async def event_generator():
+        left_client = ollama.Client(host=left_host)
+        right_client = ollama.Client(host=right_host)
+
         def send_chunk(role, token):
             return f"data: {json.dumps({'role': role, 'token': token})}\n\n"
 
-        def model_stream(model, messages):
-            for chunk in ollama.chat(
+        def model_stream(client, model, messages, options):
+            for chunk in client.chat(
                     model=model,
                     messages=messages,
-                    options={"temperature": temperature, "top_k": top_k, "top_p": top_p},
+                    options=options,
+                    keep_alive=keep_alive,
                     stream=True,
             ):
                 if "message" in chunk:
                     yield chunk["message"]["content"]
 
-        yield send_chunk("system", f"Initializing Conversation: {left_model} 🧠 vs {right_model}")
+        yield send_chunk(
+            "system",
+            (
+                f"Initializing Conversation: {left_model} ({left_host}) 🧠 "
+                f"vs {right_model} ({right_host}) | turns={turns}, keep_alive={keep_alive}"
+            ),
+        )
 
         # Left model starts with its system prompt
         left_init = [
@@ -107,18 +107,28 @@ async def chat_stream(request: Request):
         ]
 
         left_reply = ""
-        for token in model_stream(left_model, left_init):
+        for token in model_stream(
+                left_client,
+                left_model,
+                left_init,
+                {"temperature": left_temperature, "top_k": left_top_k, "top_p": left_top_p},
+        ):
             left_reply += token
             yield send_chunk(left_model, token)
 
         # Alternate dialogue between models
-        for _ in range(15):
+        for _ in range(turns):
             right_messages = [
                 {"role": "system", "content": prompt_right},
                 {"role": "user", "content": left_reply},
             ]
             right_reply = ""
-            for token in model_stream(right_model, right_messages):
+            for token in model_stream(
+                    right_client,
+                    right_model,
+                    right_messages,
+                    {"temperature": right_temperature, "top_k": right_top_k, "top_p": right_top_p},
+            ):
                 right_reply += token
                 yield send_chunk(right_model, token)
 
@@ -127,7 +137,12 @@ async def chat_stream(request: Request):
                 {"role": "user", "content": right_reply},
             ]
             left_reply = ""
-            for token in model_stream(left_model, left_messages):
+            for token in model_stream(
+                    left_client,
+                    left_model,
+                    left_messages,
+                    {"temperature": left_temperature, "top_k": left_top_k, "top_p": left_top_p},
+            ):
                 left_reply += token
                 yield send_chunk(left_model, token)
 
@@ -168,4 +183,3 @@ async def save_conversation(request: Request):
         return JSONResponse({"status": "saved", "id": cid})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-

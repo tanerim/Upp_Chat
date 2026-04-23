@@ -17,6 +17,7 @@ By default, total responses for each model is limited to 15. It could be set to 
   - Right model = 🟢 light green messages  
   - Each message block is labeled with the model name.
 - **Custom Parameters** – Set temperature, top-k, and top-p values per model.
+- **Independent Runtime Controls** – Set per-model temperature/top-k/top-p, Ollama host per side, turn count, and keep_alive.
 - **Conversation Control** – Stop or save any dialogue into a local SQLite database.
 
 ---
@@ -55,6 +56,29 @@ By default, total responses for each model is limited to 15. It could be set to 
    uvicorn main:app --reload --port 8008
    ```
 
+## ⚡ Performance Mode (recommended for multi-GPU)
+
+If both models run on the same Ollama instance, it may unload/reload models between turns.
+To reduce model swapping:
+
+1. Run **two Ollama servers** (one per GPU) on different ports.
+2. Assign one model to each host in the UI.
+3. Increase `keep_alive` (example: `60m`) so models stay warm in VRAM.
+
+Example (Linux):
+
+```bash
+# GPU 0
+CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=127.0.0.1:11434 ollama serve
+
+# GPU 1 (second terminal)
+CUDA_VISIBLE_DEVICES=1 OLLAMA_HOST=127.0.0.1:11435 ollama serve
+```
+
+Then set:
+- Left host: `http://127.0.0.1:11434`
+- Right host: `http://127.0.0.1:11435`
+
 
 ## How It Works
 
@@ -62,7 +86,7 @@ By default, total responses for each model is limited to 15. It could be set to 
 - Pick your left and right models from your installed Ollama list.
 
 ### Set model parameters
-- You can set temperature, Top K and Top P parameters for each model.
+- You can set temperature, Top K, Top P, host, turn count, and keep_alive parameters.
 
 ### Define the left model’s role
 - When prompted, describe the left model’s persona or mission, e.g.
