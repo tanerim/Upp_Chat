@@ -88,7 +88,10 @@ async def index(request: Request):
         print("⚠️ Error retrieving models:", e)
         models = get_fallback_models()
 
-    return templates.TemplateResponse("index.html", {"request": request, "models": models})
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "models": models, "css_version": int(time.time())},
+    )
 
 
 @app.post("/api/chat-stream")
@@ -130,6 +133,17 @@ async def chat_stream(request: Request):
                 if "message" in chunk:
                     yield chunk["message"]["content"]
 
+        def stream_with_guard(client, model, messages, options):
+            response_text = ""
+            try:
+                for token in model_stream(client, model, messages, options):
+                    response_text += token
+                    yield ("token", token)
+            except Exception as exc:
+                yield ("error", f"{model} failed: {exc}")
+            else:
+                yield ("done", response_text)
+
         yield send_chunk(
             "system",
             (
@@ -144,9 +158,15 @@ async def chat_stream(request: Request):
         ]
 
         left_reply = ""
-        for token in model_stream(left_client, left_model, left_init, left_options):
-            left_reply += token
-            yield send_chunk(left_model, token)
+        for event_type, value in stream_with_guard(left_client, left_model, left_init, left_options):
+            if event_type == "token":
+                yield send_chunk(left_model, value)
+            elif event_type == "error":
+                yield send_chunk("system", f"❌ {value}")
+                yield send_chunk("system", "🏁 Conversation finished.")
+                return
+            elif event_type == "done":
+                left_reply = value
 
         for _ in range(turns):
             right_messages = [
@@ -154,18 +174,30 @@ async def chat_stream(request: Request):
                 {"role": "user", "content": left_reply},
             ]
             right_reply = ""
-            for token in model_stream(right_client, right_model, right_messages, right_options):
-                right_reply += token
-                yield send_chunk(right_model, token)
+            for event_type, value in stream_with_guard(right_client, right_model, right_messages, right_options):
+                if event_type == "token":
+                    yield send_chunk(right_model, value)
+                elif event_type == "error":
+                    yield send_chunk("system", f"❌ {value}")
+                    yield send_chunk("system", "🏁 Conversation finished.")
+                    return
+                elif event_type == "done":
+                    right_reply = value
 
             left_messages = [
                 {"role": "system", "content": prompt_left},
                 {"role": "user", "content": right_reply},
             ]
             left_reply = ""
-            for token in model_stream(left_client, left_model, left_messages, left_options):
-                left_reply += token
-                yield send_chunk(left_model, token)
+            for event_type, value in stream_with_guard(left_client, left_model, left_messages, left_options):
+                if event_type == "token":
+                    yield send_chunk(left_model, value)
+                elif event_type == "error":
+                    yield send_chunk("system", f"❌ {value}")
+                    yield send_chunk("system", "🏁 Conversation finished.")
+                    return
+                elif event_type == "done":
+                    left_reply = value
 
         yield send_chunk("system", "🏁 Conversation finished.")
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Upp Chat · Pro Console</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v={{ css_version }}" />
 </head>
 <body>
   <header class="topbar">
@@ -221,50 +221,59 @@
       $("saveBtn").disabled = true;
       updateStats();
 
-      const response = await fetch("/api/chat-stream", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      try {
+        const response = await fetch("/api/chat-stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() || "";
-
-        for (const part of parts) {
-          if (!part.startsWith("data: ")) continue;
-          const payload = JSON.parse(part.slice(6));
-          const role = payload.role;
-          const token = payload.token;
-          tokenCount += token.length;
-
-          if (role !== currentRole) {
-            flushMessage();
-            currentRole = role;
-            const node = makeMessageNode(role, left, right);
-            currentNode = node.wrap;
-            currentTextNode = node.text;
-          }
-
-          currentText += token;
-          if (currentTextNode) currentTextNode.textContent = currentText;
+        if (!response.ok || !response.body) {
+          throw new Error(`Stream request failed (${response.status})`);
         }
 
-        chatbox.scrollTop = chatbox.scrollHeight;
-      }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-      flushMessage();
-      chatbox.insertAdjacentHTML("beforeend", "<p class='system-line'>Conversation finished.</p>");
-      $("saveBtn").disabled = false;
-      clearInterval(ticker);
-      updateStats();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() || "";
+
+          for (const part of parts) {
+            if (!part.startsWith("data: ")) continue;
+            const payload = JSON.parse(part.slice(6));
+            const role = payload.role;
+            const token = typeof payload.token === "string" ? payload.token : "";
+            tokenCount += token.length;
+
+            if (role !== currentRole) {
+              flushMessage();
+              currentRole = role;
+              const node = makeMessageNode(role, left, right);
+              currentNode = node.wrap;
+              currentTextNode = node.text;
+            }
+
+            currentText += token;
+            if (currentTextNode) currentTextNode.textContent = currentText;
+          }
+
+          chatbox.scrollTop = chatbox.scrollHeight;
+        }
+      } catch (err) {
+        chatbox.insertAdjacentHTML("beforeend", `<p class='system-line'>❌ ${err.message}</p>`);
+        showToast(`❌ ${err.message}`);
+      } finally {
+        flushMessage();
+        chatbox.insertAdjacentHTML("beforeend", "<p class='system-line'>Conversation finished.</p>");
+        $("saveBtn").disabled = false;
+        clearInterval(ticker);
+        updateStats();
+      }
     }
 
     $("saveBtn").addEventListener("click", async () => {
