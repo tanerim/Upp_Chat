@@ -10,9 +10,10 @@ import re
 import time
 import math
 from collections import Counter
-from typing import Any, List
+from typing import List
 from datetime import datetime
 from functools import lru_cache
+from gensim.models import Word2Vec
 from db import init_db, get_connection, DB_PATH
 
 

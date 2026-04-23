@@ -2,3 +2,4 @@ ollama~=0.6.0
 fastapi~=0.121.0
 uvicorn
 jinja2
+gensim~=4.3.3
