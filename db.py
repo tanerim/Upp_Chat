@@ -7,7 +7,17 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "data", "conversations.db")
 
 
 def get_connection():
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA foreign_keys=ON;")
+    return conn
+
+
+def _ensure_column(cursor, table_name, column_name, column_type):
+    columns = cursor.execute(f"PRAGMA table_info({table_name})").fetchall()
+    existing_column_names = {col[1] for col in columns}
+    if column_name not in existing_column_names:
+        cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
 
 def init_db():
     """Initialize the database and create table if it doesn’t exist."""
@@ -25,6 +35,13 @@ def init_db():
             created_at TEXT
         )
     """)
+    _ensure_column(c, "conversations", "left_model", "TEXT")
+    _ensure_column(c, "conversations", "right_model", "TEXT")
+    _ensure_column(c, "conversations", "temperature", "REAL")
+    _ensure_column(c, "conversations", "top_k", "INTEGER")
+    _ensure_column(c, "conversations", "top_p", "REAL")
+    _ensure_column(c, "conversations", "conversation", "TEXT")
+    _ensure_column(c, "conversations", "created_at", "TEXT")
     c.execute("""
         CREATE TABLE IF NOT EXISTS conversation_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,6 +53,10 @@ def init_db():
             created_at TEXT NOT NULL,
             FOREIGN KEY (conversation_id) REFERENCES conversations(id)
         )
+    """)
+    c.execute("""
+        CREATE INDEX IF NOT EXISTS idx_conversation_messages_conversation_id
+        ON conversation_messages(conversation_id)
     """)
     conn.commit()
     conn.close()
