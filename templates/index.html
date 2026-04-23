@@ -39,6 +39,10 @@
         <label for="pL">Top P:</label>
         <input type="number" id="pL" value="0.9" step="0.1" min="0" max="1" />
       </div>
+      <div class="inline-field">
+        <label for="hostL">Ollama Host:</label>
+        <input type="text" id="hostL" value="http://127.0.0.1:11434" />
+      </div>
     </div>
 
     <div class="model-card">
@@ -62,6 +66,24 @@
       <div class="inline-field">
         <label for="pR">Top P:</label>
         <input type="number" id="pR" value="0.9" step="0.1" min="0" max="1" />
+      </div>
+      <div class="inline-field">
+        <label for="hostR">Ollama Host:</label>
+        <input type="text" id="hostR" value="http://127.0.0.1:11435" />
+      </div>
+    </div>
+  </section>
+
+  <section class="settings">
+    <div class="model-card">
+      <h3>Conversation Runtime</h3>
+      <div class="inline-field">
+        <label for="turns">Turns:</label>
+        <input type="number" id="turns" value="15" min="1" max="200" />
+      </div>
+      <div class="inline-field">
+        <label for="keepAlive">Keep Alive:</label>
+        <input type="text" id="keepAlive" value="20m" />
       </div>
     </div>
   </section>
@@ -159,9 +181,16 @@
     async function startConversation(leftPrompt, rightPrompt) {
       const left = $("#leftModel").val();
       const right = $("#rightModel").val();
-      const temperature = parseFloat($("#tempL").val());
-      const top_k = parseInt($("#kL").val());
-      const top_p = parseFloat($("#pL").val());
+      const left_temperature = parseFloat($("#tempL").val());
+      const left_top_k = parseInt($("#kL").val());
+      const left_top_p = parseFloat($("#pL").val());
+      const right_temperature = parseFloat($("#tempR").val());
+      const right_top_k = parseInt($("#kR").val());
+      const right_top_p = parseFloat($("#pR").val());
+      const left_host = $("#hostL").val().trim();
+      const right_host = $("#hostR").val().trim();
+      const turns = parseInt($("#turns").val());
+      const keep_alive = $("#keepAlive").val().trim();
 
       $("#chatbox").html("<p class='system'>Starting conversation...</p>");
       $("#saveBtn").prop("disabled", true);
@@ -173,9 +202,16 @@
         body: JSON.stringify({
           left_model: left,
           right_model: right,
-          temperature,
-          top_k,
-          top_p,
+          left_temperature,
+          left_top_k,
+          left_top_p,
+          right_temperature,
+          right_top_k,
+          right_top_p,
+          left_host,
+          right_host,
+          turns,
+          keep_alive,
           prompt_left: leftPrompt,
           prompt_right: rightPrompt
         }),
@@ -244,6 +280,10 @@
         temperature: parseFloat($("#tempL").val()),
         top_k: parseInt($("#kL").val()),
         top_p: parseFloat($("#pL").val()),
+        left_host: $("#hostL").val().trim(),
+        right_host: $("#hostR").val().trim(),
+        turns: parseInt($("#turns").val()),
+        keep_alive: $("#keepAlive").val().trim(),
         conversation,
       };
 
