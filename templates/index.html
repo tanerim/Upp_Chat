@@ -1,134 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Upp Chat</title>
+  <title>Upp Chat · Pro Console</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
-
 <body>
-  <!-- Header -->
-  <header>
-    <h1>Upp Chat</h1>
-    <p>Local LLM Conversation Environment</p>
+  <header class="topbar">
+    <div>
+      <h1>Upp Chat</h1>
+      <p>Local LLM Conversation Console</p>
+    </div>
+    <div class="status-pills">
+      <span class="pill">⚡ Stream</span>
+      <span class="pill">🧠 Dual Model</span>
+      <span class="pill">💾 SQLite</span>
+    </div>
   </header>
 
-  <!-- Settings Section -->
-  <section class="settings">
-    <div class="model-card">
+  <section class="dashboard-grid">
+    <article class="panel">
       <h3>Left Model</h3>
-      <div class="inline-field">
-        <label for="leftModel">Model:</label>
-        <select id="leftModel">
-          {% for m in models %}
-            <option value="{{m.name}}">{{m.label}}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="inline-field">
-        <label for="tempL">Temperature:</label>
-        <input type="number" id="tempL" value="0.7" step="0.1" min="0" max="1" />
-      </div>
-      <div class="inline-field">
-        <label for="kL">Top K:</label>
-        <input type="number" id="kL" value="40" />
-      </div>
-      <div class="inline-field">
-        <label for="pL">Top P:</label>
-        <input type="number" id="pL" value="0.9" step="0.1" min="0" max="1" />
-      </div>
-      <div class="inline-field">
-        <label for="hostL">Ollama Host:</label>
-        <input type="text" id="hostL" value="http://127.0.0.1:11434" />
-      </div>
-    </div>
+      <label>Model<select id="leftModel">{% for m in models %}<option value="{{m.name}}">{{m.label}}</option>{% endfor %}</select></label>
+      <label>Temperature<input type="number" id="tempL" value="0.7" step="0.1" min="0" max="1" /></label>
+      <label>Top K<input type="number" id="kL" value="40" /></label>
+      <label>Top P<input type="number" id="pL" value="0.9" step="0.1" min="0" max="1" /></label>
+      <label>Ollama Host<input type="text" id="hostL" value="http://127.0.0.1:11434" /></label>
+    </article>
 
-    <div class="model-card">
+    <article class="panel">
       <h3>Right Model</h3>
-      <div class="inline-field">
-        <label for="rightModel">Model:</label>
-        <select id="rightModel">
-          {% for m in models %}
-            <option value="{{m.name}}">{{m.label}}</option>
-          {% endfor %}
-        </select>
+      <label>Model<select id="rightModel">{% for m in models %}<option value="{{m.name}}">{{m.label}}</option>{% endfor %}</select></label>
+      <label>Temperature<input type="number" id="tempR" value="0.7" step="0.1" min="0" max="1" /></label>
+      <label>Top K<input type="number" id="kR" value="40" /></label>
+      <label>Top P<input type="number" id="pR" value="0.9" step="0.1" min="0" max="1" /></label>
+      <label>Ollama Host<input type="text" id="hostR" value="http://127.0.0.1:11435" /></label>
+    </article>
+
+    <article class="panel runtime-panel">
+      <h3>Runtime</h3>
+      <label>Turns<input type="number" id="turns" value="15" min="1" max="200" /></label>
+      <label>Keep Alive<input type="text" id="keepAlive" value="20m" /></label>
+      <div class="runtime-stats">
+        <div><span id="statMessages">0</span><small>Mesaj</small></div>
+        <div><span id="statTokens">0</span><small>Token</small></div>
+        <div><span id="statTime">0s</span><small>Süre</small></div>
       </div>
-      <div class="inline-field">
-        <label for="tempR">Temperature:</label>
-        <input type="number" id="tempR" value="0.7" step="0.1" min="0" max="1" />
+      <div class="action-row">
+        <button id="startBtn">Start Conversation</button>
+        <button id="saveBtn" disabled>Save</button>
       </div>
-      <div class="inline-field">
-        <label for="kR">Top K:</label>
-        <input type="number" id="kR" value="40" />
-      </div>
-      <div class="inline-field">
-        <label for="pR">Top P:</label>
-        <input type="number" id="pR" value="0.9" step="0.1" min="0" max="1" />
-      </div>
-      <div class="inline-field">
-        <label for="hostR">Ollama Host:</label>
-        <input type="text" id="hostR" value="http://127.0.0.1:11435" />
-      </div>
-    </div>
+    </article>
   </section>
 
-  <section class="settings">
-    <div class="model-card">
-      <h3>Conversation Runtime</h3>
-      <div class="inline-field">
-        <label for="turns">Turns:</label>
-        <input type="number" id="turns" value="15" min="1" max="200" />
-      </div>
-      <div class="inline-field">
-        <label for="keepAlive">Keep Alive:</label>
-        <input type="text" id="keepAlive" value="20m" />
-      </div>
-    </div>
-  </section>
+  <main id="chatbox" aria-live="polite"></main>
 
-  <section class="center-control">
-    <button id="startBtn">Start Conversation</button>
-  </section>
+  <footer class="footer">Upp Chat • 2026</footer>
 
-  <!-- Chat Area -->
-  <main id="chatbox"></main>
-
-  <!-- Bottom Controls -->
-  <div class="bottom-bar">
-    <button id="saveBtn" disabled>Save Conversation</button>
-  </div>
-
-  <!-- Footer -->
-  <footer class="footer">ts @ 2025</footer>
-
-  <!-- Conversation Init Modal -->
-  <div id="initModal" class="modal">
+  <div id="initModal" class="modal" aria-hidden="true">
     <div class="modal-content">
-      <h2>🎯 Define Each Model’s Role & Goal</h2>
-
-      <div class="inline-field modal-inline-field">
-        <label for="topicPreset"><strong>Topic Preset:</strong></label>
+      <h2>🎯 Model Rolleri</h2>
+      <label>Konu Preseti
         <select id="topicPreset">
           <option value="">Manual prompt yazacağım</option>
           <option value="sun">Güneşin rengi (Doğu vs Batı)</option>
           <option value="dragon">Ejderha simgesi (koruyucu vs yıkıcı)</option>
           <option value="coffee">Kahve kültürü (ritüel vs hız)</option>
         </select>
-      </div>
-
-      <label for="userPromptLeft"><strong>Left Model Prompt:</strong></label>
-      <textarea id="userPromptLeft" placeholder="e.g., You are a philosopher exploring the ethics of AI consciousness..."></textarea>
-
-      <label for="userPromptRight"><strong>Right Model Prompt:</strong></label>
-      <textarea id="userPromptRight" placeholder="e.g., You are a scientist analyzing consciousness through empirical methods..."></textarea>
-
-      <div class="force-lang-row">
-        <input type="checkbox" id="forceTurkish" checked />
-        <label for="forceTurkish"><strong>Türkçe konuş (zorla)</strong></label>
-      </div>
-
+      </label>
+      <label>Left Model Prompt<textarea id="userPromptLeft"></textarea></label>
+      <label>Right Model Prompt<textarea id="userPromptRight"></textarea></label>
+      <label class="checkbox-row"><input type="checkbox" id="forceTurkish" checked /> Türkçe konuş (zorla)</label>
       <div class="modal-actions">
         <button id="cancelInit">Cancel</button>
         <button id="confirmInit">Start</button>
@@ -136,268 +79,220 @@
     </div>
   </div>
 
-  <!-- Go Top Button -->
   <button id="goTopBtn" title="Go to top">⬆</button>
 
-  <!-- Scripts -->
   <script>
-    // -------- Stopword list --------
-    const STOP_WORDS = new Set([
-      "a","an","the","and","or","but","if","then","so","as","at","by","for","from","in","into","of","on","to","up","with",
-      "without","about","above","after","again","against","all","am","are","aren’t","be","because","been","being","below",
-      "between","both","can","could","did","do","does","doing","down","during","each","few","further","had","has","have",
-      "having","he","her","here","hers","herself","him","himself","his","how","i","i’m","i’ve","i’ll","i’d","is","it","its",
-      "it’s","itself","let","me","more","most","my","myself","no","nor","not","now","off","once","only","other","our","ours",
-      "ourselves","out","over","own","same","she","should","so","some","such","than","that","their","theirs","them",
-      "themselves","then","there","these","they","this","those","through","too","under","until","very","was","we","were",
-      "what","when","where","which","while","who","whom","why","will","with","would","you","your","yours","yourself","yourselves",
-      "s", "t", "ve", "d", "m", "isn", "ll", "e", "g"
-    ]);
+    const $ = (id) => document.getElementById(id);
+    const STOP_WORDS = new Set(["a","an","the","and","or","but","if","then","so","as","at","by","for","from","in","into","of","on","to","up","with","without","about","above","after","again","against","all","am","are","be","because","been","being","below","between","both","can","could","did","do","does","doing","down","during","each","few","further","had","has","have","having","he","her","here","hers","herself","him","himself","his","how","i","is","it","its","itself","let","me","more","most","my","myself","no","nor","not","now","off","once","only","other","our","ours","ourselves","out","over","own","same","she","should","some","such","than","that","their","theirs","them","themselves","there","these","they","this","those","through","too","under","until","very","was","we","were","what","when","where","which","while","who","whom","why","will","would","you","your","yours","yourself","yourselves"]);
 
-    function topWords(text, n = 10) {
-      const words = text.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/)
-        .filter(w => w && !STOP_WORDS.has(w));
+    const modal = $("initModal");
+    const chatbox = $("chatbox");
+    const goTopBtn = $("goTopBtn");
+
+    let conversation = [];
+    let currentRole = null;
+    let currentNode = null;
+    let currentTextNode = null;
+    let currentText = "";
+    let tokenCount = 0;
+    let startTs = 0;
+    let ticker = null;
+
+    const TOPIC_PRESETS = {
+      sun: { left: "Güneş batı kültüründe sarıdır. Bu tezi kültürel sanat, eğitim ve sembolizm üzerinden güçlü şekilde savun.", right: "Güneş doğu kültüründe beyazdır. Bu tezi kültürel algı, estetik ve tarihsel örneklerle güçlü şekilde savun." },
+      dragon: { left: "Batı anlatılarında ejderha çoğunlukla yıkıcı bir tehdittir. Bu yaklaşımı mitoloji ve edebiyat üzerinden savun.", right: "Doğu anlatılarında ejderha çoğunlukla bilgelik ve koruyuculuğun sembolüdür. Bu yaklaşımı mitoloji ve halk kültürü üzerinden savun." },
+      coffee: { left: "Batı kahve kültürü verimlilik ve hız odaklıdır. Bu tezi modern iş yaşamı ve tüketim alışkanlıklarıyla savun.", right: "Doğu kahve kültürü ritüel, sohbet ve misafirperverlik odaklıdır. Bu tezi toplumsal gelenekler ve gündelik yaşamla savun." }
+    };
+
+    function topWords(text, n = 8) {
+      const words = text.toLowerCase().replace(/[^a-zçğıöşü\s]/gi, " ").split(/\s+/).filter(w => w && !STOP_WORDS.has(w));
       const freq = {};
       for (const w of words) freq[w] = (freq[w] || 0) + 1;
       return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, n);
     }
 
-    let conversation = [];
-    let currentRole = null;
-    let currentBuffer = "";
-
-    // -------- Modal Logic --------
-    const modal = $("#initModal");
-    const leftPromptInput = $("#userPromptLeft");
-    const rightPromptInput = $("#userPromptRight");
-    const forceTurkishInput = $("#forceTurkish");
-    const topicPresetInput = $("#topicPreset");
-
-    const TOPIC_PRESETS = {
-      sun: {
-        left: "Güneş batı kültüründe sarıdır. Bu tezi kültürel sanat, eğitim ve sembolizm üzerinden güçlü şekilde savun.",
-        right: "Güneş doğu kültüründe beyazdır. Bu tezi kültürel algı, estetik ve tarihsel örneklerle güçlü şekilde savun."
-      },
-      dragon: {
-        left: "Batı anlatılarında ejderha çoğunlukla yıkıcı bir tehdittir. Bu yaklaşımı mitoloji ve edebiyat üzerinden savun.",
-        right: "Doğu anlatılarında ejderha çoğunlukla bilgelik ve koruyuculuğun sembolüdür. Bu yaklaşımı mitoloji ve halk kültürü üzerinden savun."
-      },
-      coffee: {
-        left: "Batı kahve kültürü verimlilik ve hız odaklıdır. Bu tezi modern iş yaşamı ve tüketim alışkanlıklarıyla savun.",
-        right: "Doğu kahve kültürü ritüel, sohbet ve misafirperverlik odaklıdır. Bu tezi toplumsal gelenekler ve gündelik yaşamla savun."
-      }
-    };
-
-    function applyTopicPreset(presetKey) {
-      const preset = TOPIC_PRESETS[presetKey];
-      if (!preset) return;
-      leftPromptInput.val(preset.left);
-      rightPromptInput.val(preset.right);
+    function updateStats() {
+      $("statMessages").textContent = conversation.length;
+      $("statTokens").textContent = tokenCount;
+      if (startTs) $("statTime").textContent = `${Math.floor((Date.now() - startTs) / 1000)}s`;
     }
 
-    topicPresetInput.on("change", function () {
-      applyTopicPreset($(this).val());
-    });
+    function makeMessageNode(role, left, right) {
+      const klass = role.includes(left) ? "left-msg" : role.includes(right) ? "right-msg" : "system";
+      const wrap = document.createElement("div");
+      wrap.className = `msg ${klass}`;
+      const name = document.createElement("strong");
+      name.className = "model-name";
+      name.textContent = role;
+      const text = document.createElement("div");
+      text.className = "msg-text";
+      wrap.append(name, text);
+      chatbox.appendChild(wrap);
+      return { wrap, text, klass };
+    }
 
-    $("#startBtn").click(() => {
-      modal.addClass("active");
-      topicPresetInput.val("");
-      forceTurkishInput.prop("checked", true);
-      leftPromptInput.val("").focus();
-      rightPromptInput.val("");
-    });
-
-    $("#cancelInit").click(() => {
-      modal.removeClass("active");
-    });
-
-    $("#confirmInit").click(() => {
-      let leftPrompt = leftPromptInput.val().trim();
-      let rightPrompt = rightPromptInput.val().trim();
-      if (!leftPrompt || !rightPrompt) {
-        alert("Please define both models' roles or goals.");
-        return;
+    function flushMessage() {
+      if (!currentNode || !currentText.trim()) return;
+      if (currentNode.classList.contains("left-msg") || currentNode.classList.contains("right-msg")) {
+        const freqs = topWords(currentText);
+        if (freqs.length) {
+          const freqBox = document.createElement("div");
+          freqBox.className = "freq-box";
+          freqBox.innerHTML = `<strong>Top Words:</strong> ${freqs.map(([w, c]) => `<span>${w} (${c})</span>`).join(" ")}`;
+          currentNode.appendChild(freqBox);
+        }
       }
+      conversation.push({ role: currentRole, content: currentText.trim() });
+      currentNode = null;
+      currentTextNode = null;
+      currentText = "";
+      updateStats();
+    }
 
-      if (forceTurkishInput.is(":checked")) {
+    function showToast(msg) {
+      const t = document.createElement("div");
+      t.className = "toast";
+      t.textContent = msg;
+      document.body.appendChild(t);
+      requestAnimationFrame(() => t.classList.add("show"));
+      setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 250); }, 2600);
+    }
+
+    $("topicPreset").addEventListener("change", (e) => {
+      const p = TOPIC_PRESETS[e.target.value];
+      if (!p) return;
+      $("userPromptLeft").value = p.left;
+      $("userPromptRight").value = p.right;
+    });
+
+    $("startBtn").addEventListener("click", () => {
+      modal.classList.add("active");
+      modal.setAttribute("aria-hidden", "false");
+      $("userPromptLeft").focus();
+    });
+
+    $("cancelInit").addEventListener("click", () => {
+      modal.classList.remove("active");
+      modal.setAttribute("aria-hidden", "true");
+    });
+
+    $("confirmInit").addEventListener("click", () => {
+      let leftPrompt = $("userPromptLeft").value.trim();
+      let rightPrompt = $("userPromptRight").value.trim();
+      if (!leftPrompt || !rightPrompt) return alert("Please define both model prompts.");
+      if ($("forceTurkish").checked) {
         const trGuard = "Yanıtlarını yalnızca Türkçe üret. Başka dil kullanma.";
-        leftPrompt = `${leftPrompt}
-
-${trGuard}`;
-        rightPrompt = `${rightPrompt}
-
-${trGuard}`;
+        leftPrompt += `\n\n${trGuard}`;
+        rightPrompt += `\n\n${trGuard}`;
       }
-
-      modal.removeClass("active");
+      modal.classList.remove("active");
+      modal.setAttribute("aria-hidden", "true");
       startConversation(leftPrompt, rightPrompt);
     });
 
-    // -------- Main Conversation Function --------
     async function startConversation(leftPrompt, rightPrompt) {
-      const left = $("#leftModel").val();
-      const right = $("#rightModel").val();
-      const left_temperature = parseFloat($("#tempL").val());
-      const left_top_k = parseInt($("#kL").val());
-      const left_top_p = parseFloat($("#pL").val());
-      const right_temperature = parseFloat($("#tempR").val());
-      const right_top_k = parseInt($("#kR").val());
-      const right_top_p = parseFloat($("#pR").val());
-      const left_host = $("#hostL").val().trim();
-      const right_host = $("#hostR").val().trim();
-      const turns = parseInt($("#turns").val());
-      const keep_alive = $("#keepAlive").val().trim();
+      const left = $("leftModel").value;
+      const right = $("rightModel").value;
+      const payload = {
+        left_model: left,
+        right_model: right,
+        left_temperature: parseFloat($("tempL").value),
+        left_top_k: parseInt($("kL").value),
+        left_top_p: parseFloat($("pL").value),
+        right_temperature: parseFloat($("tempR").value),
+        right_top_k: parseInt($("kR").value),
+        right_top_p: parseFloat($("pR").value),
+        left_host: $("hostL").value.trim(),
+        right_host: $("hostR").value.trim(),
+        turns: parseInt($("turns").value),
+        keep_alive: $("keepAlive").value.trim(),
+        prompt_left: leftPrompt,
+        prompt_right: rightPrompt
+      };
 
-      $("#chatbox").html("<p class='system'>Starting conversation...</p>");
-      $("#saveBtn").prop("disabled", true);
+      chatbox.innerHTML = "<p class='system-line'>Starting conversation...</p>";
       conversation = [];
+      currentRole = null;
+      currentText = "";
+      tokenCount = 0;
+      startTs = Date.now();
+      clearInterval(ticker);
+      ticker = setInterval(updateStats, 1000);
+      $("saveBtn").disabled = true;
+      updateStats();
 
       const response = await fetch("/api/chat-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          left_model: left,
-          right_model: right,
-          left_temperature,
-          left_top_k,
-          left_top_p,
-          right_temperature,
-          right_top_k,
-          right_top_p,
-          left_host,
-          right_host,
-          turns,
-          keep_alive,
-          prompt_left: leftPrompt,
-          prompt_right: rightPrompt
-        }),
+        body: JSON.stringify(payload)
       });
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
-      async function flushMessage(role) {
-        if (!currentBuffer.trim()) return;
-        const cssClass = role.includes(left)
-          ? "left-msg"
-          : role.includes(right)
-          ? "right-msg"
-          : "system";
-        const modelLabel = `<strong class='model-name'>${role}</strong>`;
-        const msgText = currentBuffer.trim();
-
-        let freqHTML = "";
-        if (cssClass !== "system") {
-          const topFreq = topWords(msgText);
-          if (topFreq.length) {
-            freqHTML = `<div class='freq-box'><strong>Top Words:</strong> ${topFreq.map(([w, c]) => `<span>${w} (${c})</span>`).join(" ")}</div>`;
-          }
-        }
-
-        conversation.push({ role, content: msgText });
-        $("#chatbox").append(`<div class='${cssClass} fade-in'>${modelLabel}<div class='msg-text'>${msgText}</div>${freqHTML}</div>`);
-        $("#chatbox").scrollTop($("#chatbox")[0].scrollHeight);
-        currentBuffer = "";
-      }
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const parts = buffer.split("\n\n");
-        buffer = parts.pop();
+        buffer = parts.pop() || "";
+
         for (const part of parts) {
           if (!part.startsWith("data: ")) continue;
           const payload = JSON.parse(part.slice(6));
           const role = payload.role;
           const token = payload.token;
-          if (role !== currentRole && currentRole !== null) await flushMessage(currentRole);
-          currentRole = role;
-          currentBuffer += token;
+          tokenCount += token.length;
+
+          if (role !== currentRole) {
+            flushMessage();
+            currentRole = role;
+            const node = makeMessageNode(role, left, right);
+            currentNode = node.wrap;
+            currentTextNode = node.text;
+          }
+
+          currentText += token;
+          if (currentTextNode) currentTextNode.textContent = currentText;
         }
+
+        chatbox.scrollTop = chatbox.scrollHeight;
       }
 
-      await flushMessage(currentRole);
-      $("#chatbox").append("<p class='system'>Conversation finished.</p>");
-      $("#saveBtn").prop("disabled", false);
+      flushMessage();
+      chatbox.insertAdjacentHTML("beforeend", "<p class='system-line'>Conversation finished.</p>");
+      $("saveBtn").disabled = false;
+      clearInterval(ticker);
+      updateStats();
     }
 
-    // -------- Save Conversation --------
-    $("#saveBtn").click(async function () {
-      if (!conversation.length) {
-        showToast("⚠️ No conversation to save!");
-        return;
-      }
-
+    $("saveBtn").addEventListener("click", async () => {
+      if (!conversation.length) return showToast("⚠️ No conversation to save!");
       const payload = {
-        left_model: $("#leftModel").val(),
-        right_model: $("#rightModel").val(),
-        temperature: parseFloat($("#tempL").val()),
-        top_k: parseInt($("#kL").val()),
-        top_p: parseFloat($("#pL").val()),
-        left_host: $("#hostL").val().trim(),
-        right_host: $("#hostR").val().trim(),
-        turns: parseInt($("#turns").val()),
-        keep_alive: $("#keepAlive").val().trim(),
-        conversation,
+        left_model: $("leftModel").value,
+        right_model: $("rightModel").value,
+        temperature: parseFloat($("tempL").value),
+        top_k: parseInt($("kL").value),
+        top_p: parseFloat($("pL").value),
+        conversation
       };
-
       try {
         const response = await fetch("/api/save", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(payload)
         });
-
         const result = await response.json();
-        if (response.ok && result.status === "saved") {
-          showToast(`✅ Conversation saved! ID: ${result.id}`);
-        } else {
-          showToast(`❌ Save failed: ${result.error || "Unknown error"}`);
-        }
+        if (response.ok && result.status === "saved") showToast(`✅ Saved: ${result.id}`);
+        else showToast(`❌ Save failed: ${result.error || "Unknown"}`);
       } catch (err) {
         showToast(`⚠️ Save error: ${err.message}`);
       }
     });
 
-    // -------- Toast Notification --------
-    function showToast(msg) {
-      const t = document.createElement("div");
-      t.textContent = msg;
-      Object.assign(t.style, {
-        position: "fixed",
-        bottom: "80px",
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "#a5b4fc",
-        color: "#111827",
-        padding: "10px 20px",
-        borderRadius: "10px",
-        fontWeight: "600",
-        boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-        opacity: 0,
-        transition: "opacity 0.5s",
-        zIndex: 9999
-      });
-      document.body.appendChild(t);
-      setTimeout(() => (t.style.opacity = 1), 50);
-      setTimeout(() => {
-        t.style.opacity = 0;
-        setTimeout(() => t.remove(), 500);
-      }, 3000);
-    }
-
-    // -------- Go Top Button --------
-    const goTopBtn = document.getElementById("goTopBtn");
-    const chatbox = document.getElementById("chatbox");
-
-    chatbox.addEventListener("scroll", () => {
-      goTopBtn.classList.toggle("show", chatbox.scrollTop > 200);
-    });
-    goTopBtn.addEventListener("click", () => {
-      chatbox.scrollTo({ top: 0, behavior: "smooth" });
-    });
+    chatbox.addEventListener("scroll", () => goTopBtn.classList.toggle("show", chatbox.scrollTop > 220));
+    goTopBtn.addEventListener("click", () => chatbox.scrollTo({ top: 0, behavior: "smooth" }));
   </script>
 </body>
 </html>
