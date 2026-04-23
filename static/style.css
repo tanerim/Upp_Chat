@@ -309,6 +309,31 @@ footer {
   gap: 6px;
 }
 
+
+.modal-inline-field {
+  margin: 12px 0 8px;
+}
+
+.modal-inline-field label {
+  flex: 0 0 140px;
+}
+
+.force-lang-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.force-lang-row input {
+  width: auto;
+}
+
+.force-lang-row label {
+  margin: 0;
+}
+
 .modal-content textarea {
   width: 100%;
   height: 120px;

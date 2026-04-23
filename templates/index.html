@@ -108,11 +108,26 @@
     <div class="modal-content">
       <h2>🎯 Define Each Model’s Role & Goal</h2>
 
+      <div class="inline-field modal-inline-field">
+        <label for="topicPreset"><strong>Topic Preset:</strong></label>
+        <select id="topicPreset">
+          <option value="">Manual prompt yazacağım</option>
+          <option value="sun">Güneşin rengi (Doğu vs Batı)</option>
+          <option value="dragon">Ejderha simgesi (koruyucu vs yıkıcı)</option>
+          <option value="coffee">Kahve kültürü (ritüel vs hız)</option>
+        </select>
+      </div>
+
       <label for="userPromptLeft"><strong>Left Model Prompt:</strong></label>
       <textarea id="userPromptLeft" placeholder="e.g., You are a philosopher exploring the ethics of AI consciousness..."></textarea>
 
       <label for="userPromptRight"><strong>Right Model Prompt:</strong></label>
       <textarea id="userPromptRight" placeholder="e.g., You are a scientist analyzing consciousness through empirical methods..."></textarea>
+
+      <div class="force-lang-row">
+        <input type="checkbox" id="forceTurkish" checked />
+        <label for="forceTurkish"><strong>Türkçe konuş (zorla)</strong></label>
+      </div>
 
       <div class="modal-actions">
         <button id="cancelInit">Cancel</button>
@@ -155,9 +170,39 @@
     const modal = $("#initModal");
     const leftPromptInput = $("#userPromptLeft");
     const rightPromptInput = $("#userPromptRight");
+    const forceTurkishInput = $("#forceTurkish");
+    const topicPresetInput = $("#topicPreset");
+
+    const TOPIC_PRESETS = {
+      sun: {
+        left: "Güneş batı kültüründe sarıdır. Bu tezi kültürel sanat, eğitim ve sembolizm üzerinden güçlü şekilde savun.",
+        right: "Güneş doğu kültüründe beyazdır. Bu tezi kültürel algı, estetik ve tarihsel örneklerle güçlü şekilde savun."
+      },
+      dragon: {
+        left: "Batı anlatılarında ejderha çoğunlukla yıkıcı bir tehdittir. Bu yaklaşımı mitoloji ve edebiyat üzerinden savun.",
+        right: "Doğu anlatılarında ejderha çoğunlukla bilgelik ve koruyuculuğun sembolüdür. Bu yaklaşımı mitoloji ve halk kültürü üzerinden savun."
+      },
+      coffee: {
+        left: "Batı kahve kültürü verimlilik ve hız odaklıdır. Bu tezi modern iş yaşamı ve tüketim alışkanlıklarıyla savun.",
+        right: "Doğu kahve kültürü ritüel, sohbet ve misafirperverlik odaklıdır. Bu tezi toplumsal gelenekler ve gündelik yaşamla savun."
+      }
+    };
+
+    function applyTopicPreset(presetKey) {
+      const preset = TOPIC_PRESETS[presetKey];
+      if (!preset) return;
+      leftPromptInput.val(preset.left);
+      rightPromptInput.val(preset.right);
+    }
+
+    topicPresetInput.on("change", function () {
+      applyTopicPreset($(this).val());
+    });
 
     $("#startBtn").click(() => {
       modal.addClass("active");
+      topicPresetInput.val("");
+      forceTurkishInput.prop("checked", true);
       leftPromptInput.val("").focus();
       rightPromptInput.val("");
     });
@@ -167,12 +212,23 @@
     });
 
     $("#confirmInit").click(() => {
-      const leftPrompt = leftPromptInput.val().trim();
-      const rightPrompt = rightPromptInput.val().trim();
+      let leftPrompt = leftPromptInput.val().trim();
+      let rightPrompt = rightPromptInput.val().trim();
       if (!leftPrompt || !rightPrompt) {
         alert("Please define both models' roles or goals.");
         return;
       }
+
+      if (forceTurkishInput.is(":checked")) {
+        const trGuard = "Yanıtlarını yalnızca Türkçe üret. Başka dil kullanma.";
+        leftPrompt = `${leftPrompt}
+
+${trGuard}`;
+        rightPrompt = `${rightPrompt}
+
+${trGuard}`;
+      }
+
       modal.removeClass("active");
       startConversation(leftPrompt, rightPrompt);
     });
