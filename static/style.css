@@ -112,6 +112,54 @@ textarea { min-height: 120px; resize: vertical; }
   background: #ffffff;
   padding: 14px;
 }
+
+.vector-panel {
+  margin: 0 24px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  padding: 14px;
+}
+.vector-panel.hidden { display: none; }
+.vector-panel h3 { margin: 0 0 10px; }
+.vector-meta {
+  color: var(--muted);
+  font-size: .9rem;
+  margin-bottom: 10px;
+}
+.vector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 10px;
+}
+.vector-card {
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+  border-radius: 12px;
+  padding: 10px;
+}
+.vector-card h4 {
+  margin: 0 0 8px;
+  font-size: .95rem;
+}
+.vector-line {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .83rem;
+  line-height: 1.5;
+}
+.word-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.word-chip {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: .8rem;
+}
 .msg {
   padding: 11px 12px;
   border-radius: 12px;
@@ -224,4 +272,5 @@ textarea { min-height: 120px; resize: vertical; }
   .dashboard-grid { grid-template-columns: 1fr; }
   #chatbox { max-height: calc(100vh - 280px); }
   .prompt-grid { grid-template-columns: 1fr; }
+  .vector-grid { grid-template-columns: 1fr; }
 }
