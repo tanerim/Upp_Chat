@@ -55,6 +55,28 @@
   </section>
 
   <main id="chatbox" aria-live="polite"></main>
+  <section id="vectorPanel" class="vector-panel hidden">
+    <h3>🧭 Konuşma Vektör Haritası</h3>
+    <div id="vectorMeta" class="vector-meta"></div>
+    <div class="vector-grid">
+      <article class="vector-card">
+        <h4>Tüm Konuşma Merkez Vektörü</h4>
+        <p id="conversationCentroid" class="vector-line">Henüz hesaplanmadı.</p>
+      </article>
+      <article class="vector-card">
+        <h4>Model Merkezleri Benzerliği</h4>
+        <p id="centroidSimilarity" class="vector-line">Henüz hesaplanmadı.</p>
+      </article>
+      <article class="vector-card">
+        <h4>Konuşmanın Baskın Sözcükleri</h4>
+        <div id="salientWords" class="word-chip-wrap"></div>
+      </article>
+      <article class="vector-card">
+        <h4>Fikir Çeperi (Left vs Right)</h4>
+        <div id="lexicalFrontier" class="word-chip-wrap"></div>
+      </article>
+    </div>
+  </section>
 
   <footer class="footer">Upp Chat • 2026</footer>
 
@@ -111,6 +133,69 @@
       const freq = {};
       for (const w of words) freq[w] = (freq[w] || 0) + 1;
       return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, n);
+    }
+
+    function formatVector(vector, take = 10) {
+      if (!Array.isArray(vector) || !vector.length) return "N/A";
+      return vector.slice(0, take).map((v) => Number(v).toFixed(4)).join(", ");
+    }
+
+    function resetVectorPanel() {
+      $("vectorPanel").classList.add("hidden");
+      $("vectorMeta").textContent = "";
+      $("conversationCentroid").textContent = "Henüz hesaplanmadı.";
+      $("centroidSimilarity").textContent = "Henüz hesaplanmadı.";
+      $("salientWords").innerHTML = "";
+      $("lexicalFrontier").innerHTML = "";
+    }
+
+    function renderWordChips(containerId, items, mapper) {
+      const container = $(containerId);
+      container.innerHTML = "";
+      if (!items?.length) {
+        container.textContent = "Veri yok.";
+        return;
+      }
+      for (const item of items) {
+        const chip = document.createElement("span");
+        chip.className = "word-chip";
+        chip.textContent = mapper(item);
+        container.appendChild(chip);
+      }
+    }
+
+    async function analyzeConversationVectors(leftModel, rightModel) {
+      if (!conversation.length) return;
+      try {
+        const response = await fetch("/api/conversation-vectors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            left_model: leftModel,
+            right_model: rightModel,
+            conversation
+          })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          showToast(`⚠️ Vektör analizi başarısız: ${result.error || "Unknown"}`);
+          return;
+        }
+
+        $("vectorPanel").classList.remove("hidden");
+        $("vectorMeta").textContent = `token=${result.token_count} · vocab=${result.vocabulary_size} · dim=${result.vector_size}`;
+        $("conversationCentroid").textContent = formatVector(result.conversation_centroid, 12);
+        $("centroidSimilarity").textContent = `Cosine Similarity: ${Number(result.left_right_similarity || 0).toFixed(4)} | Left: [${formatVector(result.left_centroid, 6)}] | Right: [${formatVector(result.right_centroid, 6)}]`;
+
+        renderWordChips("salientWords", result.salient_words, (x) => `${x.word} (${x.similarity.toFixed(3)})`);
+        renderWordChips(
+          "lexicalFrontier",
+          result.lexical_frontier,
+          (x) => `${x.word} → ${x.lean === "left" ? "L" : "R"} Δ${x.delta.toFixed(3)}`
+        );
+      } catch (err) {
+        showToast(`⚠️ Vektör analizi hatası: ${err.message}`);
+      }
     }
 
     function updateStats() {
@@ -213,6 +298,7 @@
       };
 
       chatbox.innerHTML = "<p class='system-line'>Starting conversation...</p>";
+      resetVectorPanel();
       conversation = [];
       currentRole = null;
       currentText = "";
@@ -275,6 +361,7 @@
         $("saveBtn").disabled = false;
         clearInterval(ticker);
         updateStats();
+        await analyzeConversationVectors(left, right);
       }
     }
 

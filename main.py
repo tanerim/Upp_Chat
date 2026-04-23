@@ -7,6 +7,7 @@ import uuid
 import json
 import re
 import time
+import math
 from collections import Counter
 from typing import List
 from datetime import datetime
@@ -45,6 +46,53 @@ def compute_response_embedding(model: Word2Vec, tokens: List[str]) -> List[float
 
     embedding = model.wv[valid_tokens].mean(axis=0)
     return [float(value) for value in embedding]
+
+
+def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
+    if not vec_a or not vec_b or len(vec_a) != len(vec_b):
+        return 0.0
+
+    dot = sum(a * b for a, b in zip(vec_a, vec_b))
+    norm_a = math.sqrt(sum(a * a for a in vec_a))
+    norm_b = math.sqrt(sum(b * b for b in vec_b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def compute_token_centroid(model: Word2Vec, tokens: List[str]) -> List[float]:
+    valid_tokens = [token for token in tokens if token in model.wv]
+    if not valid_tokens:
+        return []
+
+    embedding = model.wv[valid_tokens].mean(axis=0)
+    return [float(value) for value in embedding]
+
+
+def get_lexical_frontier(
+    model: Word2Vec, left_centroid: List[float], right_centroid: List[float], limit: int = 12
+):
+    if not left_centroid or not right_centroid:
+        return []
+
+    frontier = []
+    for token in model.wv.index_to_key:
+        word_vec = [float(v) for v in model.wv[token]]
+        left_score = cosine_similarity(word_vec, left_centroid)
+        right_score = cosine_similarity(word_vec, right_centroid)
+        delta = abs(left_score - right_score)
+        frontier.append(
+            {
+                "word": token,
+                "left_similarity": round(left_score, 6),
+                "right_similarity": round(right_score, 6),
+                "delta": round(delta, 6),
+                "lean": "left" if left_score >= right_score else "right",
+            }
+        )
+
+    frontier.sort(key=lambda item: item["delta"], reverse=True)
+    return frontier[:limit]
 
 
 def build_word2vec_model(tokenized_messages: List[List[str]], vector_size: int = 64) -> Word2Vec | None:
@@ -315,3 +363,57 @@ async def save_conversation(request: Request):
         return JSONResponse({"status": "saved", "id": cid, "messages_saved": len(conversation)})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/conversation-vectors")
+async def conversation_vectors(request: Request):
+    data = await request.json()
+    conversation = data.get("conversation", [])
+    left_model = str(data.get("left_model", "")).strip()
+    right_model = str(data.get("right_model", "")).strip()
+
+    if not isinstance(conversation, list) or not conversation:
+        return JSONResponse({"error": "conversation must be a non-empty list"}, status_code=400)
+
+    tokenized_messages = [tokenize_text(str(message.get("content", ""))) for message in conversation]
+    word2vec_model = build_word2vec_model(tokenized_messages)
+    if not word2vec_model:
+        return JSONResponse({"error": "No usable text to build Word2Vec model"}, status_code=400)
+
+    all_tokens = [token for tokens in tokenized_messages for token in tokens]
+    left_tokens = []
+    right_tokens = []
+
+    for idx, message in enumerate(conversation):
+        role = str(message.get("role", ""))
+        if role == left_model:
+            left_tokens.extend(tokenized_messages[idx])
+        elif role == right_model:
+            right_tokens.extend(tokenized_messages[idx])
+
+    conversation_centroid = compute_token_centroid(word2vec_model, all_tokens)
+    left_centroid = compute_token_centroid(word2vec_model, left_tokens)
+    right_centroid = compute_token_centroid(word2vec_model, right_tokens)
+    centroid_similarity = cosine_similarity(left_centroid, right_centroid)
+
+    salient_words = []
+    if conversation_centroid:
+        for token in word2vec_model.wv.index_to_key:
+            word_vec = [float(v) for v in word2vec_model.wv[token]]
+            score = cosine_similarity(word_vec, conversation_centroid)
+            salient_words.append({"word": token, "similarity": round(score, 6)})
+        salient_words.sort(key=lambda item: item["similarity"], reverse=True)
+
+    return JSONResponse(
+        {
+            "vector_size": word2vec_model.vector_size,
+            "token_count": len(all_tokens),
+            "vocabulary_size": len(word2vec_model.wv.index_to_key),
+            "conversation_centroid": conversation_centroid,
+            "left_centroid": left_centroid,
+            "right_centroid": right_centroid,
+            "left_right_similarity": round(centroid_similarity, 6),
+            "salient_words": salient_words[:12],
+            "lexical_frontier": get_lexical_frontier(word2vec_model, left_centroid, right_centroid),
+        }
+    )
