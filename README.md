@@ -116,3 +116,26 @@ and the right model responds — all streamed live in the browser.
 - Include a temperature sync toggle.
 - Visualize conversation history in a separate page.
 - Export saved conversations as Markdown or JSON.
+
+
+## 🔎 Embedding Vectors: Görme ve Kullanma
+
+Kaydedilen her mesaj artık iki analiz alanıyla gelir:
+- `word_frequency`: kelime frekans sözlüğü
+- `embedding_vector`: vektör alanı (JSON float listesi). `gensim` kuruluysa Word2Vec ile, kurulu değilse hash tabanlı fallback ile üretilir.
+
+### 1) Mesajları ve embedding alanını çekme
+
+```bash
+curl "http://127.0.0.1:8008/api/conversations/<conversation_id>/messages?include_vectors=true"
+```
+
+### 2) Bir mesaj için benzer mesajları bulma (cosine similarity)
+
+```bash
+curl -X POST "http://127.0.0.1:8008/api/conversations/<conversation_id>/similarity" \
+  -H "Content-Type: application/json" \
+  -d '{"reference_index": 3, "top_k": 5}'
+```
+
+Bu endpoint, seçilen mesaj indeksine göre en benzer mesajları döndürür.

@@ -5,9 +5,12 @@ from fastapi.templating import Jinja2Templates
 import ollama
 import uuid
 import json
+import sqlite3
 import re
 import time
+import math
 from collections import Counter
+from typing import Any, List
 from datetime import datetime
 from functools import lru_cache
 from db import init_db, get_connection, DB_PATH
@@ -25,8 +28,84 @@ init_db()
 
 
 def compute_word_frequency(text):
-    words = WORD_PATTERN.findall(text.lower())
+    words = tokenize_text(text)
     return dict(Counter(words))
+
+
+def tokenize_text(text: str) -> List[str]:
+    return WORD_PATTERN.findall(text.lower())
+
+
+def compute_hash_embedding(tokens: List[str], vector_size: int = 64) -> List[float]:
+    if not tokens:
+        return []
+
+    vector = [0.0] * vector_size
+    for token in tokens:
+        idx = hash(token) % vector_size
+        vector[idx] += 1.0
+
+    magnitude = math.sqrt(sum(value * value for value in vector))
+    if magnitude == 0.0:
+        return vector
+
+    return [value / magnitude for value in vector]
+
+
+def compute_response_embedding(model: Any, tokens: List[str], vector_size: int = 64) -> List[float]:
+    if not tokens:
+        return []
+
+    if model is None:
+        return compute_hash_embedding(tokens, vector_size=vector_size)
+
+    valid_tokens = [token for token in tokens if token in model.wv]
+    if not valid_tokens:
+        return compute_hash_embedding(tokens, vector_size=vector_size)
+
+    embedding = model.wv[valid_tokens].mean(axis=0)
+    return [float(value) for value in embedding]
+
+
+def build_word2vec_model(tokenized_messages: List[List[str]], vector_size: int = 64) -> Any:
+    usable_sentences = [tokens for tokens in tokenized_messages if tokens]
+    if not usable_sentences:
+        return None
+
+    try:
+        from gensim.models import Word2Vec
+    except Exception:
+        return None
+
+    return Word2Vec(
+        sentences=usable_sentences,
+        vector_size=vector_size,
+        window=5,
+        min_count=1,
+        workers=1,
+        sg=1,
+        epochs=20,
+    )
+
+
+def parse_json_field(value, default):
+    try:
+        return json.loads(value) if value else default
+    except (TypeError, json.JSONDecodeError):
+        return default
+
+
+def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
+    if not vec_a or not vec_b or len(vec_a) != len(vec_b):
+        return 0.0
+
+    dot_product = sum(a * b for a, b in zip(vec_a, vec_b))
+    norm_a = math.sqrt(sum(a * a for a in vec_a))
+    norm_b = math.sqrt(sum(b * b for b in vec_b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+
+    return dot_product / (norm_a * norm_b)
 
 
 @lru_cache(maxsize=1)
@@ -241,11 +320,17 @@ async def save_conversation(request: Request):
                 ),
             )
 
+            tokenized_messages = [tokenize_text(str(message.get("content", ""))) for message in conversation]
+            word2vec_model = build_word2vec_model(tokenized_messages)
+
             message_rows = []
             for idx, message in enumerate(conversation):
                 role = str(message.get("role", "unknown"))
                 content = str(message.get("content", ""))
+                tokens = tokenized_messages[idx]
                 word_frequency = compute_word_frequency(content)
+                response_embedding = compute_response_embedding(word2vec_model, tokens)
+
                 message_rows.append(
                     (
                         cid,
@@ -253,6 +338,7 @@ async def save_conversation(request: Request):
                         role,
                         content,
                         json.dumps(word_frequency, ensure_ascii=False),
+                        json.dumps(response_embedding, ensure_ascii=False),
                         created_at,
                     )
                 )
@@ -260,9 +346,9 @@ async def save_conversation(request: Request):
             c.executemany(
                 """
                 INSERT INTO conversation_messages (
-                    conversation_id, message_index, role, content, word_frequency, created_at
+                    conversation_id, message_index, role, content, word_frequency, embedding_vector, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
                 message_rows,
             )
@@ -270,5 +356,106 @@ async def save_conversation(request: Request):
 
         print(f"💾 Saved conversation {cid} to {DB_PATH}")
         return JSONResponse({"status": "saved", "id": cid, "messages_saved": len(conversation)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/conversations/{conversation_id}/messages")
+async def get_conversation_messages(conversation_id: str, include_vectors: bool = False):
+    try:
+        conn = get_connection()
+        conn.row_factory = sqlite3.Row
+        with conn:
+            rows = conn.execute(
+                """
+                SELECT message_index, role, content, word_frequency, embedding_vector, created_at
+                FROM conversation_messages
+                WHERE conversation_id = ?
+                ORDER BY message_index ASC
+            """,
+                (conversation_id,),
+            ).fetchall()
+        conn.close()
+
+        messages = []
+        for row in rows:
+            item = {
+                "message_index": row["message_index"],
+                "role": row["role"],
+                "content": row["content"],
+                "word_frequency": parse_json_field(row["word_frequency"], {}),
+                "created_at": row["created_at"],
+            }
+            if include_vectors:
+                item["embedding_vector"] = parse_json_field(row["embedding_vector"], [])
+            messages.append(item)
+
+        return JSONResponse({"conversation_id": conversation_id, "messages": messages, "count": len(messages)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/conversations/{conversation_id}/similarity")
+async def get_similarity_for_message(conversation_id: str, request: Request):
+    data = await request.json()
+    reference_index = int(data.get("reference_index", 0))
+    top_k = max(1, min(50, int(data.get("top_k", 5))))
+
+    try:
+        conn = get_connection()
+        conn.row_factory = sqlite3.Row
+        with conn:
+            rows = conn.execute(
+                """
+                SELECT message_index, role, content, embedding_vector
+                FROM conversation_messages
+                WHERE conversation_id = ?
+                ORDER BY message_index ASC
+            """,
+                (conversation_id,),
+            ).fetchall()
+        conn.close()
+
+        if not rows:
+            return JSONResponse({"error": "conversation not found or has no messages"}, status_code=404)
+
+        parsed = [
+            {
+                "message_index": row["message_index"],
+                "role": row["role"],
+                "content": row["content"],
+                "embedding_vector": parse_json_field(row["embedding_vector"], []),
+            }
+            for row in rows
+        ]
+
+        reference = next((item for item in parsed if item["message_index"] == reference_index), None)
+        if not reference:
+            return JSONResponse({"error": "reference_index not found"}, status_code=404)
+
+        similarities = []
+        for item in parsed:
+            if item["message_index"] == reference_index:
+                continue
+            score = cosine_similarity(reference["embedding_vector"], item["embedding_vector"])
+            similarities.append(
+                {
+                    "message_index": item["message_index"],
+                    "role": item["role"],
+                    "content": item["content"],
+                    "similarity": round(score, 6),
+                }
+            )
+
+        similarities.sort(key=lambda x: x["similarity"], reverse=True)
+
+        return JSONResponse(
+            {
+                "conversation_id": conversation_id,
+                "reference_index": reference_index,
+                "top_k": top_k,
+                "results": similarities[:top_k],
+            }
+        )
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)

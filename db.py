@@ -55,11 +55,13 @@ def init_db():
             role TEXT NOT NULL,
             content TEXT NOT NULL,
             word_frequency TEXT NOT NULL,
+            embedding_vector TEXT NOT NULL DEFAULT "[]",
             created_at TEXT NOT NULL,
             FOREIGN KEY (conversation_id) REFERENCES conversations(id)
         )
     """
     )
+    _ensure_column(c, "conversation_messages", "embedding_vector", "TEXT NOT NULL DEFAULT '[]'")
     c.execute(
         """
         CREATE INDEX IF NOT EXISTS idx_conversation_messages_conversation_id
