@@ -8,8 +8,10 @@ import json
 import re
 import time
 from collections import Counter
+from typing import List
 from datetime import datetime
 from functools import lru_cache
+from gensim.models import Word2Vec
 from db import init_db, get_connection, DB_PATH
 
 
@@ -25,8 +27,40 @@ init_db()
 
 
 def compute_word_frequency(text):
-    words = WORD_PATTERN.findall(text.lower())
+    words = tokenize_text(text)
     return dict(Counter(words))
+
+
+def tokenize_text(text: str) -> List[str]:
+    return WORD_PATTERN.findall(text.lower())
+
+
+def compute_response_embedding(model: Word2Vec, tokens: List[str]) -> List[float]:
+    if not tokens:
+        return []
+
+    valid_tokens = [token for token in tokens if token in model.wv]
+    if not valid_tokens:
+        return []
+
+    embedding = model.wv[valid_tokens].mean(axis=0)
+    return [float(value) for value in embedding]
+
+
+def build_word2vec_model(tokenized_messages: List[List[str]], vector_size: int = 64) -> Word2Vec | None:
+    usable_sentences = [tokens for tokens in tokenized_messages if tokens]
+    if not usable_sentences:
+        return None
+
+    return Word2Vec(
+        sentences=usable_sentences,
+        vector_size=vector_size,
+        window=5,
+        min_count=1,
+        workers=1,
+        sg=1,
+        epochs=20,
+    )
 
 
 @lru_cache(maxsize=1)
@@ -241,11 +275,19 @@ async def save_conversation(request: Request):
                 ),
             )
 
+            tokenized_messages = [tokenize_text(str(message.get("content", ""))) for message in conversation]
+            word2vec_model = build_word2vec_model(tokenized_messages)
+
             message_rows = []
             for idx, message in enumerate(conversation):
                 role = str(message.get("role", "unknown"))
                 content = str(message.get("content", ""))
+                tokens = tokenized_messages[idx]
                 word_frequency = compute_word_frequency(content)
+                response_embedding = (
+                    compute_response_embedding(word2vec_model, tokens) if word2vec_model else []
+                )
+
                 message_rows.append(
                     (
                         cid,
@@ -253,6 +295,7 @@ async def save_conversation(request: Request):
                         role,
                         content,
                         json.dumps(word_frequency, ensure_ascii=False),
+                        json.dumps(response_embedding, ensure_ascii=False),
                         created_at,
                     )
                 )
@@ -260,9 +303,9 @@ async def save_conversation(request: Request):
             c.executemany(
                 """
                 INSERT INTO conversation_messages (
-                    conversation_id, message_index, role, content, word_frequency, created_at
+                    conversation_id, message_index, role, content, word_frequency, embedding_vector, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
                 message_rows,
             )
