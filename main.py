@@ -9,6 +9,7 @@ import json
 import re
 from collections import Counter
 from datetime import datetime
+from functools import lru_cache
 from db import init_db, get_connection, DB_PATH
 
 
@@ -26,6 +27,23 @@ def compute_word_frequency(text):
     """
     words = re.findall(r"\b\w+\b", text.lower(), flags=re.UNICODE)
     return dict(Counter(words))
+
+
+@lru_cache(maxsize=1)
+def get_fallback_models():
+    return [
+        {"name": "llama2", "label": "llama2 (3.9 GB)"},
+        {"name": "mistral", "label": "mistral (7.2 GB)"},
+        {"name": "phi3", "label": "phi3 (2.3 GB)"},
+    ]
+
+
+def normalize_chat_params(data):
+    return {
+        "temperature": float(data.get("temperature", data.get("left_temperature", 0.7))),
+        "top_k": int(data.get("top_k", data.get("left_top_k", 40))),
+        "top_p": float(data.get("top_p", data.get("left_top_p", 0.9))),
+    }
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -50,11 +68,7 @@ async def index(request: Request):
             ]
     except Exception as e:
         print("⚠️ Error retrieving models:", e)
-        models = [
-            {"name": "llama2", "label": "llama2 (3.9 GB)"},
-            {"name": "mistral", "label": "mistral (7.2 GB)"},
-            {"name": "phi3", "label": "phi3 (2.3 GB)"}
-        ]
+        models = get_fallback_models()
 
     return templates.TemplateResponse("index.html", {"request": request, "models": models})
 
@@ -169,45 +183,52 @@ async def save_conversation(request: Request):
     data = await request.json()
     cid = str(uuid.uuid4())
     conversation = data.get("conversation", [])
+    params = normalize_chat_params(data)
 
     try:
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO conversations (
-                id, left_model, right_model, temperature, top_k, top_p, conversation, created_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            cid,
-            data["left_model"],
-            data["right_model"],
-            data["temperature"],
-            data["top_k"],
-            data["top_p"],
-            json.dumps(conversation, ensure_ascii=False),
-            datetime.now().isoformat(),
-        ))
+        if not isinstance(conversation, list):
+            return JSONResponse({"error": "conversation must be a list"}, status_code=400)
 
-        for idx, message in enumerate(conversation):
-            role = message.get("role", "unknown")
-            content = message.get("content", "")
-            word_frequency = compute_word_frequency(content)
+        created_at = datetime.now().isoformat()
+        left_model = data.get("left_model", "unknown")
+        right_model = data.get("right_model", "unknown")
+
+        conn = get_connection()
+        with conn:
+            c = conn.cursor()
             c.execute("""
-                INSERT INTO conversation_messages (
-                    conversation_id, message_index, role, content, word_frequency, created_at
+                INSERT INTO conversations (
+                    id, left_model, right_model, temperature, top_k, top_p, conversation, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 cid,
-                idx,
-                role,
-                content,
-                json.dumps(word_frequency, ensure_ascii=False),
-                datetime.now().isoformat(),
+                left_model,
+                right_model,
+                params["temperature"],
+                params["top_k"],
+                params["top_p"],
+                json.dumps(conversation, ensure_ascii=False),
+                created_at,
             ))
 
-        conn.commit()
+            for idx, message in enumerate(conversation):
+                role = str(message.get("role", "unknown"))
+                content = str(message.get("content", ""))
+                word_frequency = compute_word_frequency(content)
+                c.execute("""
+                    INSERT INTO conversation_messages (
+                        conversation_id, message_index, role, content, word_frequency, created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    cid,
+                    idx,
+                    role,
+                    content,
+                    json.dumps(word_frequency, ensure_ascii=False),
+                    created_at,
+                ))
         conn.close()
 
         print(f"💾 Saved conversation {cid} to {DB_PATH}")
